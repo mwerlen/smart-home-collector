@@ -8,12 +8,13 @@ import json
 import signal
 import sys
 
-#import mysql.connector
-#from mysql.connector import errorcode
+# import mysql.connector
+# from mysql.connector import errorcode
 
 # Forked from : https://github.com/jcarduino/rtl_433_2db
 
-# Please create a mysql database for user rtl433db with create rights so table can be created
+# Please create a mysql database for user rtl433db with create rights so table
+# can be created
 # change ip for database server
 # install mysql connector
 # install phython 2.7
@@ -34,6 +35,7 @@ config = {
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
+
 
 class AsynchronousFileReader(threading.Thread):
     '''
@@ -58,6 +60,7 @@ class AsynchronousFileReader(threading.Thread):
         '''Check whether there is no more content to expect.'''
         return not self.is_alive() and self._queue.empty()
 
+
 def start_subprocess(args):
     '''
     Example of how to consume standard output and standard error of
@@ -65,15 +68,14 @@ def start_subprocess(args):
     '''
     print("\nStarting sub process " + ' '.join(args) + "\n")
 
-
     # Launch the command as subprocess.
     global process
     process = subprocess.Popen(args,
-        bufsize=1,
-        shell=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True)
+                               bufsize=1,
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT,
+                               text=True)
 
     # Launch the asynchronous readers of the process' stdout and stderr.
     global stdout_queue
@@ -82,7 +84,7 @@ def start_subprocess(args):
     stdout_reader.start()
 
 
-#def connect_db():
+# def connect_db():
 #    # do database stuff init
 #    try:
 #        print("Connecting to database")
@@ -91,7 +93,8 @@ def start_subprocess(args):
 #        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
 #            print("Something is wrong with your user name or password")
 #        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-#            print("Database does not exists, please create it before using this script.")
+#            print("Database does not exists")
+#            print("please create it before using this script")
 #            print("Tables can be created by the script.")
 #        else:
 #            print(err)
@@ -129,11 +132,9 @@ def sanitize(text):
 
 def process_inputs():
     # do queue loop, entering data to database
-    # Check the queues if we received some output (until there is nothing more to get).
+    # Check the queues if we received some output
+    # (until there is nothing more to get).
     while True:
-
-        if process.poll() is not None:
-            return False
 
         if stdout_reader.eof():
             print("Stdout is EOF !")
@@ -144,7 +145,7 @@ def process_inputs():
 
             if not line.startswith("{"):
                 # this is a message from RTL_433, print it
-               print(line.rstrip())
+                print(line.rstrip())
             else:
                 # This is Json data, load it
                 if config['debug']:
@@ -180,39 +181,43 @@ def process_inputs():
                     print(label + ' Humidity ', data["humidity"])
 
                 #######################
-                #last field, put in db
+                # last field, put in db
                 # UPDATE DB
                 #########################
-               # try:
-               #     if reconnectdb:
-               #         print("Trying reconnecting to database")
-               #      #   cnx.reconnect()
-               #         reconnectdb=0
-               #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
-               #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
-               #     #cursor.execute(add_sensordata,sensordata)
-               #     # Make sure data is committed to the database
-               #     print("committing")
-               #     #cnx.commit()
-               # except mysql.connector.Error as err:
-               #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-               #         print("Table seams to exist, no need to create it.")
-               #     else:
-               #         print(err.msg)
-               #     reconnectdb=1
-               #     print("Error connecting to database")
+                # try:
+                #     if reconnectdb:
+                #         print("Trying reconnecting to database")
+                #      #   cnx.reconnect()
+                #         reconnectdb=0
+                #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
+                #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
+                #     #cursor.execute(add_sensordata,sensordata)
+                #     # Make sure data is committed to the database
+                #     print("committing")
+                #     #cnx.commit()
+                # except mysql.connector.Error as err:
+                #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+                #         print("Table seams to exist, no need to create it.")
+                #     else:
+                #         print(err.msg)
+                #     reconnectdb=1
+                #     print("Error connecting to database")
+
+        if process.poll() is not None:
+            print(f'Return code from RTL_433 : {process.poll()}')
+            return False
 
         # Sleep a bit before asking the readers again.
         time.sleep(config['wait_time'])
 
 
 def close_all():
-    # Let's be tidy and join the threads we've started.
-   # try:
-   #     cursor.close()
-   #     cnx.close()
-   # except:
-   #     pass
+    print("Closing down")
+    # try:
+    #     cursor.close()
+    #     cnx.close()
+    # except:
+    #     pass
 
     # Close subprocess' file descriptors.
     stdout_reader.join()
@@ -222,15 +227,21 @@ def close_all():
     if process.poll() is None:
         process.terminate()
 
+
 def signal_handler(sig, frame):
-    print("Closing down")
+    print("SIGINT signal received")
     close_all()
     sys.exit(0)
 
 
 if __name__ == '__main__':
-    #connect_db()
-    start_subprocess(["/usr/local/bin/rtl_433", "-C", "si", "-f", "868M", "-F", "json", "-M", "utc", "-R76"])
+    # connect_db()
+    start_subprocess(["/usr/local/bin/rtl_433",
+                      "-C", "si",
+                      "-f", "868M",
+                      "-F", "json",
+                      "-M", "utc",
+                      "-R76"])
     signal.signal(signal.SIGINT, signal_handler)
     process_inputs()
     close_all()
