@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
-#import sys
 import subprocess
 import time
 import threading
 import queue
 import json
+import signal
+import sys
+
 #import mysql.connector
 #from mysql.connector import errorcode
 
@@ -17,12 +19,15 @@ import json
 # install phython 2.7
 # let it run ;)
 
-config = {
+bdd_config = {
   'user': 'rtl433db',
   'password': 'fWMqwmFNKbK9upjT',
   'host': '192.168.0.8',
   'database': 'rtl433db',
-  'raise_on_warnings': True,
+  'raise_on_warnings': True
+}
+config = {
+  'wait_time': 1
 }
 
 process = None
@@ -59,12 +64,17 @@ def start_subprocess(args):
     Example of how to consume standard output and standard error of
     a subprocess asynchronously without risk on deadlocking.
     '''
-    print("\n\nStarting sub process " + ' '.join(args) + "\n")
+    print("\nStarting sub process " + ' '.join(args) + "\n")
 
 
     # Launch the command as subprocess.
     global process
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(args,
+        bufsize=1,
+        shell=False,
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        text=True)
 
     # Launch the asynchronous readers of the process' stdout and stderr.
     global stdout_queue
@@ -128,11 +138,12 @@ def process_inputs():
     while not stdout_reader.eof() or not stderr_reader.eof():
         # Show what we received from err output.
         while not stderr_queue.empty():
-            line = stderr_queue.get().decode('UTF-8')
+            line = stderr_queue.get()
             print(line.rstrip())
 
         while not stdout_queue.empty():
             line = stdout_queue.get()
+            #print(line.rstrip())
             data = json.loads(line)
             # {
             #   "time" : "2020-11-20 20:06:45", 
@@ -186,7 +197,7 @@ def process_inputs():
            #     print("Error connecting to database")
         
         # Sleep a bit before asking the readers again.
-        time.sleep(.1)
+        time.sleep(config['wait_time'])
 
 
 def close_all():
@@ -196,22 +207,25 @@ def close_all():
    #     cnx.close()
    # except:
    #     pass
-    stdout_reader.join()
-    stderr_reader.join()
-
+    
     # Close subprocess' file descriptors.
+    stdout_reader.join()
     process.stdout.close()
+    stderr_reader.join()
     process.stderr.close()
+
+    # Terminate subprocess
+    process.terminate()
+
+def signal_handler(sig, frame):
+    print("Closing down")
+    close_all()
+    sys.exit(0)
 
 
 if __name__ == '__main__':
-    # The main flow:
-        #check if database is present, create tablesif no tables present
-
-
-    start_subprocess(["/usr/local/bin/rtl_433", "-C", "si", "-f", "868M", "-F", "json", "-M", "utc", "-R76"])
     #connect_db()
+    start_subprocess(["/usr/local/bin/rtl_433", "-C", "si", "-f", "868M", "-F", "json", "-M", "utc", "-R76"])
+    signal.signal(signal.SIGINT, signal_handler)
     process_inputs()
-    close_all()
-    print("Closing down")
 
