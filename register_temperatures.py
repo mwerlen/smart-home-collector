@@ -27,14 +27,13 @@ bdd_config = {
   'raise_on_warnings': True
 }
 config = {
-  'wait_time': 1
+  'wait_time': 1,
+  'debug': False
 }
 
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
-stderr_queue = queue.Queue()
-stderr_reader = None
 
 class AsynchronousFileReader(threading.Thread):
     '''
@@ -72,20 +71,16 @@ def start_subprocess(args):
     process = subprocess.Popen(args,
         bufsize=1,
         shell=False,
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True)
 
     # Launch the asynchronous readers of the process' stdout and stderr.
     global stdout_queue
     global stdout_reader
-    global stderr_queue
-    global stderr_reader
     stdout_reader = AsynchronousFileReader(process.stdout, stdout_queue)
     stdout_reader.start()
-    stderr_reader = AsynchronousFileReader(process.stderr, stderr_queue)
-    stderr_reader.start()
-    
+
 
 #def connect_db():
 #    # do database stuff init
@@ -135,67 +130,78 @@ def sanitize(text):
 def process_inputs():
     # do queue loop, entering data to database
     # Check the queues if we received some output (until there is nothing more to get).
-    while not stdout_reader.eof() or not stderr_reader.eof():
-        # Show what we received from err output.
-        while not stderr_queue.empty():
-            line = stderr_queue.get()
-            print(line.rstrip())
+    while True:
+
+        if process.poll() is not None:
+            return False
+
+        if stdout_reader.eof():
+            print("Stdout is EOF !")
+            return False
 
         while not stdout_queue.empty():
             line = stdout_queue.get()
-            #print(line.rstrip())
-            data = json.loads(line)
-            # {
-            #   "time" : "2020-11-20 20:06:45", 
-            #   "brand" : "LaCrosse", 
-            #   "model" : "LaCrosse-TX29IT", 
-            #   "id" : 7, 
-            #   "battery_ok" : 1, 
-            #   "newbattery" : 0, 
-            #   "temperature_C" : 4.000, 
-            #   "mic" : "CRC"
-            # }
-            when = int(time.time())
-            label = sanitize(data["model"])
 
-            if "channel" in data:
-                label += ".CH=" + str(data["channel"])
-            elif "id" in data:
-                label += ".ID=" + str(data["id"])
+            if not line.startswith("{"):
+                # this is a message from RTL_433, print it
+               print(line.rstrip())
+            else:
+                # This is Json data, load it
+                if config['debug']:
+                    print(line.rstrip())
 
-            if "battery_ok" in data:
-                if data["battery_ok"] == 0:
-                    print(f'⚠ {label} Battery empty!')
+                # {
+                #   "time" : "2020-11-20 20:06:45",
+                #   "brand" : "LaCrosse",
+                #   "model" : "LaCrosse-TX29IT",
+                #   "id" : 7,
+                #   "battery_ok" : 1,
+                #   "newbattery" : 0,
+                #   "temperature_C" : 4.000,
+                #   "mic" : "CRC"
+                # }
+                data = json.loads(line)
+                when = int(time.time())
+                label = sanitize(data["model"])
 
-            if "temperature_C" in data:
-                print(f'Received from {label} : Temperature {data["temperature_C"]}')
+                if "channel" in data:
+                    label += ".CH=" + str(data["channel"])
+                elif "id" in data:
+                    label += ".ID=" + str(data["id"])
 
-            if "humidity" in data:
-                print(label + ' Humidity ', data["humidity"])
+                if "battery_ok" in data:
+                    if data["battery_ok"] == 0:
+                        print(f'⚠ {label} Battery empty!')
 
-            #######################
-            #last field, put in db
-            # UPDATE DB
-            #########################
-           # try:
-           #     if reconnectdb:
-           #         print("Trying reconnecting to database")
-           #      #   cnx.reconnect()
-           #         reconnectdb=0
-           #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
-           #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
-           #     #cursor.execute(add_sensordata,sensordata)
-           #     # Make sure data is committed to the database
-           #     print("committing")
-           #     #cnx.commit()
-           # except mysql.connector.Error as err:
-           #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-           #         print("Table seams to exist, no need to create it.")
-           #     else:
-           #         print(err.msg)
-           #     reconnectdb=1
-           #     print("Error connecting to database")
-        
+                if "temperature_C" in data:
+                    print(f'Received from {label} : Temperature {data["temperature_C"]}')
+
+                if "humidity" in data:
+                    print(label + ' Humidity ', data["humidity"])
+
+                #######################
+                #last field, put in db
+                # UPDATE DB
+                #########################
+               # try:
+               #     if reconnectdb:
+               #         print("Trying reconnecting to database")
+               #      #   cnx.reconnect()
+               #         reconnectdb=0
+               #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
+               #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
+               #     #cursor.execute(add_sensordata,sensordata)
+               #     # Make sure data is committed to the database
+               #     print("committing")
+               #     #cnx.commit()
+               # except mysql.connector.Error as err:
+               #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+               #         print("Table seams to exist, no need to create it.")
+               #     else:
+               #         print(err.msg)
+               #     reconnectdb=1
+               #     print("Error connecting to database")
+
         # Sleep a bit before asking the readers again.
         time.sleep(config['wait_time'])
 
@@ -207,15 +213,14 @@ def close_all():
    #     cnx.close()
    # except:
    #     pass
-    
+
     # Close subprocess' file descriptors.
     stdout_reader.join()
     process.stdout.close()
-    stderr_reader.join()
-    process.stderr.close()
 
     # Terminate subprocess
-    process.terminate()
+    if process.poll() is None:
+        process.terminate()
 
 def signal_handler(sig, frame):
     print("Closing down")
@@ -228,4 +233,4 @@ if __name__ == '__main__':
     start_subprocess(["/usr/local/bin/rtl_433", "-C", "si", "-f", "868M", "-F", "json", "-M", "utc", "-R76"])
     signal.signal(signal.SIGINT, signal_handler)
     process_inputs()
-
+    close_all()
