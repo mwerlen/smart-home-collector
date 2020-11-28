@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
 import subprocess
+import sched
 import time
+from datetime import datetime, timedelta
 import threading
 import queue
 import json
@@ -28,10 +30,11 @@ bdd_config = {
   'raise_on_warnings': True
 }
 config = {
-  'wait_time': 1,
-  'debug': False
+  'wait_seconds': 10,
+  'debug': True
 }
 
+scheduler = sched.scheduler(time.time, time.sleep)
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
@@ -130,89 +133,109 @@ def sanitize(text):
     return text.replace(" ", "_")
 
 
+def next_run():
+    now = datetime.now()
+    base = datetime(now.year, now.month, now.day, now.hour, now.minute, now.second)
+    next_run = base + timedelta(seconds=config['wait_seconds'])
+    return next_run
+
+
 def process_inputs():
-    # do queue loop, entering data to database
-    # Check the queues if we received some output
-    # (until there is nothing more to get).
-    while True:
+    rundate = next_run()
+    runtime = rundate.timestamp()
+    if config['debug']:
+        print("-------------")
+        print(f"Next run at {str(rundate)}")
+    scheduler.enterabs(runtime, 1, check_reader)
+    scheduler.enterabs(runtime, 2, read_data)
+    scheduler.enterabs(runtime, 3, check_process)
+    scheduler.enterabs(runtime, 4, process_inputs)
 
-        if stdout_reader.eof():
-            print("Stdout is EOF !")
-            return False
 
-        while not stdout_queue.empty():
-            line = stdout_queue.get()
+def check_reader():
+    if stdout_reader.eof():
+        print("Stdout is EOF !")
+        close_all()
 
-            if not line.startswith("{"):
-                # this is a message from RTL_433, print it
+
+def read_data():
+    while not stdout_queue.empty():
+        line = stdout_queue.get()
+
+        if not line.startswith("{"):
+            # this is a message from RTL_433, print it
+            print(line.rstrip())
+        else:
+            # This is Json data, load it
+            if config['debug']:
                 print(line.rstrip())
-            else:
-                # This is Json data, load it
-                if config['debug']:
-                    print(line.rstrip())
 
-                # {
-                #   "time" : "2020-11-20 20:06:45",
-                #   "brand" : "LaCrosse",
-                #   "model" : "LaCrosse-TX29IT",
-                #   "id" : 7,
-                #   "battery_ok" : 1,
-                #   "newbattery" : 0,
-                #   "temperature_C" : 4.000,
-                #   "mic" : "CRC"
-                # }
-                data = json.loads(line)
-                when = int(time.time())
-                label = sanitize(data["model"])
+            # {
+            #   "time" : "2020-11-20 20:06:45",
+            #   "brand" : "LaCrosse",
+            #   "model" : "LaCrosse-TX29IT",
+            #   "id" : 7,
+            #   "battery_ok" : 1,
+            #   "newbattery" : 0,
+            #   "temperature_C" : 4.000,
+            #   "mic" : "CRC"
+            # }
+            data = json.loads(line)
+            when = int(time.time())
+            label = sanitize(data["model"])
 
-                if "channel" in data:
-                    label += ".CH=" + str(data["channel"])
-                elif "id" in data:
-                    label += ".ID=" + str(data["id"])
+            if "channel" in data:
+                label += ".CH=" + str(data["channel"])
+            elif "id" in data:
+                label += ".ID=" + str(data["id"])
 
-                if "battery_ok" in data:
-                    if data["battery_ok"] == 0:
-                        print(f'⚠ {label} Battery empty!')
+            if "battery_ok" in data:
+                if data["battery_ok"] == 0:
+                    print(f'⚠ {label} Battery empty!')
 
-                if "temperature_C" in data:
-                    print(f'Received from {label} : Temperature {data["temperature_C"]}')
+            if "temperature_C" in data:
+                print(f'Received from {label} : Temperature {data["temperature_C"]}')
 
-                if "humidity" in data:
-                    print(label + ' Humidity ', data["humidity"])
+            if "humidity" in data:
+                print(label + ' Humidity ', data["humidity"])
 
-                #######################
-                # last field, put in db
-                # UPDATE DB
-                #########################
-                # try:
-                #     if reconnectdb:
-                #         print("Trying reconnecting to database")
-                #      #   cnx.reconnect()
-                #         reconnectdb=0
-                #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
-                #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
-                #     #cursor.execute(add_sensordata,sensordata)
-                #     # Make sure data is committed to the database
-                #     print("committing")
-                #     #cnx.commit()
-                # except mysql.connector.Error as err:
-                #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-                #         print("Table seams to exist, no need to create it.")
-                #     else:
-                #         print(err.msg)
-                #     reconnectdb=1
-                #     print("Error connecting to database")
+            #######################
+            # last field, put in db
+            # UPDATE DB
+            #########################
+            # try:
+            #     if reconnectdb:
+            #         print("Trying reconnecting to database")
+            #      #   cnx.reconnect()
+            #         reconnectdb=0
+            #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
+            #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
+            #     #cursor.execute(add_sensordata,sensordata)
+            #     # Make sure data is committed to the database
+            #     print("committing")
+            #     #cnx.commit()
+            # except mysql.connector.Error as err:
+            #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+            #         print("Table seams to exist, no need to create it.")
+            #     else:
+            #         print(err.msg)
+            #     reconnectdb=1
+            #     print("Error connecting to database")
 
-        if process.poll() is not None:
-            print(f'Return code from RTL_433 : {process.poll()}')
-            return False
 
-        # Sleep a bit before asking the readers again.
-        time.sleep(config['wait_time'])
+def check_process():
+    if process.poll() is not None:
+        print(f'Return code from RTL_433 : {process.poll()}')
+        close_all()
 
 
 def close_all():
     print("Closing down")
+
+    # Cancel all futur events
+    for event in scheduler.queue:
+        scheduler.cancel(event)
+
     # try:
     #     cursor.close()
     #     cnx.close()
@@ -243,5 +266,8 @@ if __name__ == '__main__':
                       "-M", "utc",
                       "-R76"])
     signal.signal(signal.SIGINT, signal_handler)
+    time.sleep(1)
+    read_data()
     process_inputs()
+    scheduler.run()
     close_all()
