@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
+# Inspired from : https://github.com/jcarduino/rtl_433_2db
+
 import subprocess
 import sched
 import time
@@ -9,25 +11,15 @@ import queue
 import json
 import signal
 import sys
+import psycopg2
+import psycopg2.errorcodes
+import traceback
 
-# import mysql.connector
-# from mysql.connector import errorcode
-
-# Forked from : https://github.com/jcarduino/rtl_433_2db
-
-# Please create a mysql database for user rtl433db with create rights so table
-# can be created
-# change ip for database server
-# install mysql connector
-# install phython 2.7
-# let it run ;)
-
-bdd_config = {
-  'user': 'rtl433db',
-  'password': 'fWMqwmFNKbK9upjT',
-  'host': '192.168.0.8',
-  'database': 'rtl433db',
-  'raise_on_warnings': True
+db_config = {
+  'user': 'metrics',
+  'password': 'metrics',
+  'host': 'localhost',
+  'database': 'weather'
 }
 config = {
   'wait_seconds': 10,
@@ -38,6 +30,10 @@ scheduler = sched.scheduler(time.time, time.sleep)
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
+
+add_sensordata = ("INSERT INTO SensorData "
+                  "(sensor_id, whatdata, data) "
+                  "VALUES (%s, %s, %s)")
 
 
 class AsynchronousFileReader(threading.Thread):
@@ -87,46 +83,53 @@ def start_subprocess(args):
     stdout_reader.start()
 
 
-# def connect_db():
-#    # do database stuff init
-#    try:
-#        print("Connecting to database")
-#        cnx = mysql.connector.connect(**config)
-#    except mysql.connector.Error as err:
-#        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-#            print("Something is wrong with your user name or password")
-#        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-#            print("Database does not exists")
-#            print("please create it before using this script")
-#            print("Tables can be created by the script.")
-#        else:
-#            print(err)
-#    reconnectdb=0#if 0 then no error or need ro be reconnected
-#    #else:
-#    #cnx.close()
-#    cursor = cnx.cursor()
-#    TABLES = {}
-#    TABLES['SensorData'] = (
-#        "CREATE TABLE `SensorData` ("
-#        "  `sensor_id` INT UNSIGNED NOT NULL,"
-#        "  `whatdata` varchar(50) NOT NULL,"
-#        "  `data` float NOT NULL,"
-#        "  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-#        ") ENGINE =InnoDB DEFAULT CHARSET=latin1")
-#    for name, ddl in TABLES.iteritems():
-#        try:
-#            print("Checking table {}: ".format(name))
-#            cursor.execute(ddl)
-#        except mysql.connector.Error as err:
-#            if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-#                print("Table seams to exist, no need to create it.")
-#            else:
-#                print(err.msg)
-#        else:
-#            print("OK")
-#    add_sensordata= ("INSERT INTO SensorData "
-#                     "(sensor_id, whatdata, data) "
-#                     "VALUES (%s, %s, %s)")
+def print_psycopg2_exception(error):
+    # get details about the exception
+    error_type, error_obj, stacktrace = sys.exc_info()
+
+    # get the line number when exception occured
+    line_num = stacktrace.tb_lineno
+
+    # print the connect() error
+    print(f"\n[{error.pgcode}] {error_type.__name__} on line number {line_num} :\n{error.pgerror} ")
+
+    if config['debug']:
+        # print the pgcode and pgerror exceptions
+        # print(f"pgerror: {error.pgerror}")
+        # print(f"pgcode: {error.pgcode}\n")
+        
+        # stacktrace
+        traceback.print_tb(stacktrace)
+
+        # psycopg2 extensions.Diagnostics object attribute
+        # print(f"\nextensions.Diagnostics: {str(error.diag)}")
+
+    close_all()
+
+def check_database():
+    try:
+        print("Connecting to database")
+        connection = psycopg2.connect(**db_config)
+        cursor = connection.cursor()
+    except psycopg2.DatabaseError as error:
+        print_psycopg2_exception(error)
+    TABLES = {}
+    TABLES['SensorData'] = (
+        "CREATE TABLE IF NOT EXISTS metrics.sensors_data ("
+        "  \"sensor_id\" smallint not null,"
+        "  \"type\" text NOT NULL,"
+        "  \"data\" real NOT NULL,"
+        "  \"timestamp\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ")")
+    for name, ddl in TABLES.items():
+        try:
+            print("Checking table {}: ".format(name))
+            cursor.execute(ddl)
+            connection.commit()
+            cursor.close()
+            connection.close()
+        except psycopg2.DatabaseError as error:
+            print_psycopg2_exception(error)
 
 
 def sanitize(text):
@@ -199,28 +202,25 @@ def read_data():
             if "humidity" in data:
                 print(label + ' Humidity ', data["humidity"])
 
-            #######################
-            # last field, put in db
-            # UPDATE DB
-            #########################
-            # try:
-            #     if reconnectdb:
-            #         print("Trying reconnecting to database")
-            #      #   cnx.reconnect()
-            #         reconnectdb=0
-            #     print("Kaku ID "+str(device)+" Unit "+unit+" Grp"+group+" Do "+command+" Dim "+dim)
-            #     sensordata = (device,'Kaku '+unit+' Grp'+group+" Do "+command+ ' Dim '+ dim,dimvalue)
-            #     #cursor.execute(add_sensordata,sensordata)
-            #     # Make sure data is committed to the database
-            #     print("committing")
-            #     #cnx.commit()
-            # except mysql.connector.Error as err:
-            #     if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-            #         print("Table seams to exist, no need to create it.")
-            #     else:
-            #         print(err.msg)
-            #     reconnectdb=1
-            #     print("Error connecting to database")
+
+def save_metrics():
+    try:
+        # Open connection
+        print("Connecting to database...")
+        connection = psycopg2.connect(db_config)
+        cursor = connection.cursor()
+
+        sensordata = ("tota", "toto", "titi")
+        cursor.execute(add_sensordata, sensordata)
+
+        # Make sure data is committed to the database
+        connection.commit()
+        cursor.close()
+        connection.close()
+        print("Done !")
+    except psycopg2.DatabaseError as error:
+        print_psycopg2_exception(error)
+        print("Error connecting to database")
 
 
 def check_process():
@@ -234,6 +234,7 @@ def close_all():
 
     # Cancel all futur events
     for event in scheduler.queue:
+        print(f"Canceling {event}")
         scheduler.cancel(event)
 
     # try:
@@ -243,13 +244,16 @@ def close_all():
     #     pass
 
     # Close subprocess' file descriptors.
-    stdout_reader.join()
-    process.stdout.close()
+    if stdout_reader is not None:
+        stdout_reader.join()
+    if process is not None:
+        process.stdout.close()
 
     # Terminate subprocess
-    if process.poll() is None:
+    if process is not None and process.poll() is None:
         process.terminate()
 
+    exit() 
 
 def signal_handler(sig, frame):
     print("SIGINT signal received")
@@ -259,6 +263,7 @@ def signal_handler(sig, frame):
 
 if __name__ == '__main__':
     # connect_db()
+    check_database()
     start_subprocess(["/usr/local/bin/rtl_433",
                       "-C", "si",
                       "-f", "868M",
