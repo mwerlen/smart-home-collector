@@ -1,1 +1,0 @@
-sudo rtl_433 -C si -f 868M -F json -M utc -R76

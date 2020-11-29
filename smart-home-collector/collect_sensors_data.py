@@ -19,10 +19,11 @@ db_config = {
   'user': 'metrics',
   'password': 'metrics',
   'host': 'localhost',
-  'database': 'weather'
+  'database': 'metrics'
 }
 config = {
   'wait_seconds': 10,
+  'schema': 'public',
   'debug': True
 }
 
@@ -31,7 +32,7 @@ process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
 
-add_sensordata = ("INSERT INTO SensorData "
+add_sensordata = ("INSERT INTO " + config['schema'] + ".sensor_data "
                   "(sensor_id, whatdata, data) "
                   "VALUES (%s, %s, %s)")
 
@@ -94,17 +95,12 @@ def print_psycopg2_exception(error):
     print(f"\n[{error.pgcode}] {error_type.__name__} on line number {line_num} :\n{error.pgerror} ")
 
     if config['debug']:
-        # print the pgcode and pgerror exceptions
-        # print(f"pgerror: {error.pgerror}")
-        # print(f"pgcode: {error.pgcode}\n")
-        
         # stacktrace
         traceback.print_tb(stacktrace)
-
-        # psycopg2 extensions.Diagnostics object attribute
         # print(f"\nextensions.Diagnostics: {str(error.diag)}")
 
     close_all()
+
 
 def check_database():
     try:
@@ -115,7 +111,7 @@ def check_database():
         print_psycopg2_exception(error)
     TABLES = {}
     TABLES['SensorData'] = (
-        "CREATE TABLE IF NOT EXISTS metrics.sensors_data ("
+        "CREATE TABLE IF NOT EXISTS " + config['schema'] + ".sensors_data ("
         "  \"sensor_id\" smallint not null,"
         "  \"type\" text NOT NULL,"
         "  \"data\" real NOT NULL,"
@@ -184,7 +180,6 @@ def read_data():
             #   "mic" : "CRC"
             # }
             data = json.loads(line)
-            when = int(time.time())
             label = sanitize(data["model"])
 
             if "channel" in data:
@@ -253,7 +248,8 @@ def close_all():
     if process is not None and process.poll() is None:
         process.terminate()
 
-    exit() 
+    exit()
+
 
 def signal_handler(sig, frame):
     print("SIGINT signal received")
