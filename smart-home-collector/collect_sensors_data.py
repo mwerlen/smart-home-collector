@@ -15,6 +15,10 @@ import psycopg2
 import psycopg2.errorcodes
 import traceback
 from croniter import croniter
+import pytz
+
+
+timezone = pytz.timezone('Europe/Paris')
 
 db_config = {
   'user': 'metrics',
@@ -31,15 +35,17 @@ config = {
 }
 
 scheduler = sched.scheduler(time.time, time.sleep)
-read_cron = croniter(config['read_data_cron'])
-write_cron = croniter(config['write_data_cron'])
+read_cron = croniter(config['read_data_cron'], timezone.localize(datetime.now()))
+write_cron = croniter(config['write_data_cron'], timezone.localize(datetime.now()))
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
 
-add_sensordata = ("INSERT INTO " + config['schema'] + ".sensor_data "
-                  "(sensor_id, whatdata, data) "
-                  "VALUES (%s, %s, %s)")
+add_sensordata = ("INSERT INTO " + config['schema'] + ".sensors_data "
+                  "(idsensor, data, time) "
+                  "VALUES ('{0}', {1}, '{2}')")
+
+measures = []
 
 
 class AsynchronousFileReader(threading.Thread):
@@ -122,18 +128,38 @@ def check_database():
         "  \"name\" text NOT NULL,"
         "  \"metric\" text not null,"
         "  \"location\" text"
-        ")")
+        ");")
     TABLES['sensors_data'] = (
         "CREATE TABLE IF NOT EXISTS " + config['schema'] + ".sensors_data ("
         "  \"idsensor\" text REFERENCES " + config['schema'] + ".sensors,"
         "  \"data\" real NOT NULL,"
-        "  \"time\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        "  \"time\" timestamp  with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,"
         "  PRIMARY KEY (time,idsensor)"
-        ")")
+        ");")
 
     for name, ddl in TABLES.items():
         try:
-            print("Checking table {}: ".format(name))
+            print(f"Checking table {name}")
+            cursor.execute(ddl)
+        except psycopg2.DatabaseError as error:
+            print_psycopg2_exception(error)
+
+    SENSORS = {}
+    SENSORS['LaCrosse-TX29IT.ID=7'] = (
+        "INSERT INTO " + config['schema'] + ".sensors"
+        "  VALUES ('LaCrosse-TX29IT.ID=7',"
+        "          'Thermomètre extérieur',"
+        "          'Température',"
+        "          'Extérieur - Nord')"
+        "  ON CONFLICT (idsensor) DO "
+        "       UPDATE SET name=excluded.name,"
+        "                  metric=excluded.metric,"
+        "                  location=excluded.location"
+        ";")
+
+    for name, ddl in SENSORS.items():
+        try:
+            print(f"Checking sensor {name}")
             cursor.execute(ddl)
         except psycopg2.DatabaseError as error:
             print_psycopg2_exception(error)
@@ -149,16 +175,17 @@ def sanitize(text):
 
 def process_inputs():
     rundate = read_cron.get_next(datetime)
-    while rundate <= datetime.today():
+    while rundate <= timezone.localize(datetime.now()):
         rundate = read_cron.get_next(datetime)
     runtime = rundate.timestamp()
     if config['debug']:
         print("-------------")
-        print(f"Next run at {str(rundate)}")
+        print(f"Next read run at {str(rundate)}")
     scheduler.enterabs(runtime, 1, check_reader)
-    scheduler.enterabs(runtime, 2, read_data)
-    scheduler.enterabs(runtime, 3, check_process)
-    scheduler.enterabs(runtime, 4, process_inputs)
+    scheduler.enterabs(runtime, 2, read_measures, argument=(rundate,))
+    scheduler.enterabs(runtime, 3, write_measures)
+    scheduler.enterabs(runtime, 4, check_process)
+    scheduler.enterabs(runtime, 5, process_inputs)
 
 
 def check_reader():
@@ -167,7 +194,7 @@ def check_reader():
         close_all()
 
 
-def read_data():
+def read_measures(rundate=datetime.now()):
     while not stdout_queue.empty():
         line = stdout_queue.get()
 
@@ -189,34 +216,40 @@ def read_data():
             #   "temperature_C" : 4.000,
             #   "mic" : "CRC"
             # }
-            data = json.loads(line)
-            label = sanitize(data["model"])
+            measure = json.loads(line)
+            label = sanitize(measure["model"])
 
-            if "channel" in data:
-                label += ".CH=" + str(data["channel"])
-            elif "id" in data:
-                label += ".ID=" + str(data["id"])
+            if "channel" in measure:
+                label += ".CH=" + str(measure["channel"])
+            elif "id" in measure:
+                label += ".ID=" + str(measure["id"])
 
-            if "battery_ok" in data:
-                if data["battery_ok"] == 0:
+            if "battery_ok" in measure:
+                if measure["battery_ok"] == 0:
                     print(f'⚠ {label} Battery empty!')
 
-            if "temperature_C" in data:
-                print(f'Received from {label} : Temperature {data["temperature_C"]}')
+            if "temperature_C" in measure:
+                print(f'Received from {label} : Temperature {measure["temperature_C"]}')
 
-            if "humidity" in data:
-                print(label + ' Humidity ', data["humidity"])
+            if "humidity" in measure:
+                print(label + ' Humidity ', measure["humidity"])
+
+            measures.append((label, measure["temperature_C"], rundate))
 
 
-def save_metrics():
+def write_measures():
     try:
         # Open connection
         print("Connecting to database...")
-        connection = psycopg2.connect(db_config)
+        connection = psycopg2.connect(**db_config)
         cursor = connection.cursor()
 
-        sensordata = ("tota", "toto", "titi")
-        cursor.execute(add_sensordata, sensordata)
+        for measure in measures:
+            print(measure)
+            dml = add_sensordata.format(*measure)
+            if config['debug']:
+                print(f"DML : {dml}")
+            cursor.execute(dml)
 
         # Make sure data is committed to the database
         connection.commit()
@@ -278,7 +311,7 @@ if __name__ == '__main__':
                       "-R76"])
     signal.signal(signal.SIGINT, signal_handler)
     time.sleep(1)
-    read_data()
+    read_measures()
     process_inputs()
     scheduler.run()
     close_all()

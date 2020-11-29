@@ -2,3 +2,4 @@ pyflakes
 pycodestyle
 psycopg2-binary
 croniter
+pytz
