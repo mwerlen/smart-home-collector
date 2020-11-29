@@ -7,8 +7,6 @@ This projects aims to collect data from 433 MHz sensors (thermometer, hygrometer
 To-do list
 ----------
 
-* Read grafana documentation on how to structure the data table
-* Use a cron style expression to schedule next run
 * Split scheduler between sensor readings and data push to DB
 * Add unit tests (next run computing, close_all..)
 * Add a configuration parser to read _ini_ style configuration files

@@ -5,7 +5,7 @@
 import subprocess
 import sched
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import threading
 import queue
 import json
@@ -14,6 +14,7 @@ import sys
 import psycopg2
 import psycopg2.errorcodes
 import traceback
+from croniter import croniter
 
 db_config = {
   'user': 'metrics',
@@ -21,13 +22,17 @@ db_config = {
   'host': 'localhost',
   'database': 'metrics'
 }
+
 config = {
-  'wait_seconds': 10,
+  'read_data_cron': '* * * * * 0,10,20,30,40,50',   # every 10 secondes
+  'write_data_cron': '*/10 * * * *',  # every 10 minutes
   'schema': 'public',
   'debug': True
 }
 
 scheduler = sched.scheduler(time.time, time.sleep)
+read_cron = croniter(config['read_data_cron'])
+write_cron = croniter(config['write_data_cron'])
 process = None
 stdout_queue = queue.Queue()
 stdout_reader = None
@@ -109,38 +114,43 @@ def check_database():
         cursor = connection.cursor()
     except psycopg2.DatabaseError as error:
         print_psycopg2_exception(error)
+
     TABLES = {}
-    TABLES['SensorData'] = (
-        "CREATE TABLE IF NOT EXISTS " + config['schema'] + ".sensors_data ("
-        "  \"sensor_id\" smallint not null,"
-        "  \"type\" text NOT NULL,"
-        "  \"data\" real NOT NULL,"
-        "  \"timestamp\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    TABLES['sensors'] = (
+        "CREATE TABLE IF NOT EXISTS " + config['schema'] + ".sensors ("
+        "  \"idsensor\" text PRIMARY KEY,"
+        "  \"name\" text NOT NULL,"
+        "  \"metric\" text not null,"
+        "  \"location\" text"
         ")")
+    TABLES['sensors_data'] = (
+        "CREATE TABLE IF NOT EXISTS " + config['schema'] + ".sensors_data ("
+        "  \"idsensor\" text REFERENCES " + config['schema'] + ".sensors,"
+        "  \"data\" real NOT NULL,"
+        "  \"time\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        "  PRIMARY KEY (time,idsensor)"
+        ")")
+
     for name, ddl in TABLES.items():
         try:
             print("Checking table {}: ".format(name))
             cursor.execute(ddl)
-            connection.commit()
-            cursor.close()
-            connection.close()
         except psycopg2.DatabaseError as error:
             print_psycopg2_exception(error)
+
+    connection.commit()
+    cursor.close()
+    connection.close()
 
 
 def sanitize(text):
     return text.replace(" ", "_")
 
 
-def next_run():
-    now = datetime.now()
-    base = datetime(now.year, now.month, now.day, now.hour, now.minute, now.second)
-    next_run = base + timedelta(seconds=config['wait_seconds'])
-    return next_run
-
-
 def process_inputs():
-    rundate = next_run()
+    rundate = read_cron.get_next(datetime)
+    while rundate <= datetime.today():
+        rundate = read_cron.get_next(datetime)
     runtime = rundate.timestamp()
     if config['debug']:
         print("-------------")
