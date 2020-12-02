@@ -37,6 +37,6 @@ psql:
 	@PGPASSWORD=metrics psql -h localhost metrics metrics
 
 run:
-	@.venv/bin/python3 smart-home-collector/collect_sensors_data.py
+	@.venv/bin/python3 smart-home-collector/main.py
 
 .PHONY: init test checkstyle postgres psql

@@ -126,8 +126,14 @@ def store_measures():
     runtime = rundate.timestamp()
     if config['debug']:
         print(f"Scheduling next write run at {str(rundate)}")
-    scheduler.enterabs(runtime, 1, write_measures)
-    scheduler.enterabs(runtime, 1, store_measures)
+    scheduler.enterabs(runtime, 2, check_reader)
+    scheduler.enterabs(runtime, 2, write_measures)
+    scheduler.enterabs(runtime, 3, store_measures)
+
+
+def check_reader():
+    if not reader.is_alive():
+        close_all()
 
 
 def write_measures():
