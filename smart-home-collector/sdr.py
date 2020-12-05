@@ -2,6 +2,8 @@ import subprocess
 import json
 import threading
 from datetime import datetime
+from typing import Dict
+from queue import Queue
 
 
 def sanitize(text):
@@ -10,10 +12,10 @@ def sanitize(text):
 
 class SignalReader(threading.Thread):
 
-    def __init__(self, config, measures):
+    def __init__(self, config: Dict, message_queue: Queue):
         threading.Thread.__init__(self)
         self.config = config
-        self.measures = measures
+        self.message_queue = message_queue
 
     def run(self):
         print("\nStarting sub process " + ' '.join(self.config['commandline']) + "\n")
@@ -36,24 +38,19 @@ class SignalReader(threading.Thread):
                 if self.config['debug']:
                     print(line.rstrip())
 
-                measure = json.loads(line)
-                label = sanitize(measure["model"])
+                message = json.loads(line)
+                label = sanitize(message["model"])
                 acquisitiondate = datetime.now()
 
-                if "channel" in measure:
-                    label += ".CH=" + str(measure["channel"])
-                elif "id" in measure:
-                    label += ".ID=" + str(measure["id"])
+                if "channel" in message:
+                    label += ".CH=" + str(message["channel"])
+                elif "id" in message:
+                    label += ".ID=" + str(message["id"])
 
-                if "battery_ok" in measure:
-                    if measure["battery_ok"] == 0:
-                        print(f'⚠ {label} Battery empty!')
+                message['idsensor'] = label
+                message['acquisitiondate'] = acquisitiondate
 
-                if "temperature_C" in measure:
-                    print(f'Received from {label} : Temperature {measure["temperature_C"]}')
-
-                # TODO put full object in queue
-                self.measures.put((acquisitiondate, label, measure["temperature_C"]))
+                self.message_queue.put(message)
 
             if not self.is_alive():
                 self.close()
