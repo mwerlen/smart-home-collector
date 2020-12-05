@@ -14,15 +14,19 @@ init:
 test:
 	@echo "Not implemented yet"
 
-checkstyle: pycodestyle pyflakes
+checkstyle: pycodestyle pyflakes mypy
 
 pycodestyle:
 	@echo "Pycodestyle..."
-	@.venv/bin/pycodestyle smart-home-collector/*.py || true
+	@.venv/bin/pycodestyle smart-home-collector || true
 
 pyflakes:
 	@echo "Pyflakes..."
-	@.venv/bin/pyflakes smart-home-collector/*.py || true
+	@.venv/bin/pyflakes smart-home-collector || true
+
+mypy:
+	@echo "mypy"
+	@.venv/bin/mypy smart-home-collector/main.py || true
 
 postgres:
 	@docker run --rm \
