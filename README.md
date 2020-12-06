@@ -7,8 +7,9 @@ This projects aims to collect data from 433 MHz sensors (thermometer, hygrometer
 To-do list
 ----------
 
+* Add a shlex parser to allow simpler debug and specify a configuration file
+* Change cron-style scheduler and remove scheduler from global variables
 * Add unit tests (next run computing, close_all..)
-* Add a configuration parser to read _ini_ style configuration files
 * Create a "domotic" or "Home automation" or "Smart Home" role in Ansible to provision it on server
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
 

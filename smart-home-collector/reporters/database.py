@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Dict, Any
 from queue import Queue
 import sys
 import logging
@@ -8,21 +7,22 @@ import psycopg2
 from sensors.manager import Manager
 from sensors.metrics import Types
 from sensors.measure import Measure
+import cfg
+
+logger = logging.getLogger("database")
 
 
 class Database():
 
-    def __init__(self: Database, config: Dict[str, Any],
-                 db_config: Dict[str, Any], measure_queue: Queue[Measure]):
-        self.db_config = db_config
-        self.config = config
+    def __init__(self: Database, measure_queue: Queue[Measure]):
+        self.schema = cfg.config.get('Database', 'schema')
         self.add_sensordata = (
-            "INSERT INTO " + config['schema'] + ".sensors_data "
+            "INSERT INTO " + self.schema + ".sensors_data "
             " (time, idsensor, metric, data) "
             " VALUES (%(time)s, %(idsensor)s, %(metric)s, %(data)s)"
             ";")
         self.add_sensor = (
-            "INSERT INTO " + self.config['schema'] + ".sensors"
+            "INSERT INTO " + self.schema + ".sensors"
             "  VALUES (%(idsensor)s, %(name)s, %(location)s)"
             "  ON CONFLICT (idsensor) DO "
             "       UPDATE SET name=excluded.name,"
@@ -48,33 +48,33 @@ class Database():
             line_num = str(stacktrace.tb_lineno)
 
         # Log the connect() error
-        logging.error(f"\n[{error.pgcode}] {error_name} on line number {line_num} :"
-                      f"\n{error.pgerror} ")
+        logger.error(f"\n[{error.pgcode}] {error_name} on line number {line_num} :"
+                     f"\n{error.pgerror} ")
 
     def check_structure(self: Database) -> None:
         try:
-            logging.info("Connecting to database to update table structure")
-            connection = psycopg2.connect(**self.db_config)
+            logger.info("Connecting to database to update table structure")
+            connection = psycopg2.connect(cfg.config.postgres_dsn())
             cursor = connection.cursor()
 
             TABLES = {}
             TABLES['sensors'] = (
-                "CREATE TABLE IF NOT EXISTS " + self.config['schema'] + ".sensors ("
+                "CREATE TABLE IF NOT EXISTS " + self.schema + ".sensors ("
                 "  \"idsensor\" text PRIMARY KEY,"
                 "  \"name\" text NOT NULL,"
                 "  \"location\" text"
                 ");")
             TABLES['sensors_data'] = (
-                "CREATE TABLE IF NOT EXISTS " + self.config['schema'] + ".sensors_data ("
+                "CREATE TABLE IF NOT EXISTS " + self.schema + ".sensors_data ("
                 "  \"time\" timestamp  with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-                "  \"idsensor\" text REFERENCES " + self.config['schema'] + ".sensors,"
+                "  \"idsensor\" text REFERENCES " + self.schema + ".sensors,"
                 "  \"metric\" text not null,"
                 "  \"data\" real NOT NULL,"
                 "  PRIMARY KEY (time, idsensor, metric)"
                 ");")
 
             for name, ddl in TABLES.items():
-                logging.debug(f"Checking table {name}")
+                logger.debug(f"Checking table {name}")
                 cursor.execute(ddl)
             connection.commit()
             cursor.close()
@@ -84,13 +84,13 @@ class Database():
 
     def check_sensors_definition(self: Database, manager: Manager) -> None:
         try:
-            logging.info("Connecting to database to update sensors definition")
-            connection = psycopg2.connect(**self.db_config)
+            logger.info("Connecting to database to update sensors definition")
+            connection = psycopg2.connect(cfg.config.postgres_dsn())
             cursor = connection.cursor()
 
             for sensor in manager.sensors:
                 definition = sensor.get_sensor_definition()
-                logging.debug(f"Checking sensor {definition.idsensor}")
+                logger.debug(f"Checking sensor {definition.idsensor}")
                 cursor.execute(self.add_sensor, vars(definition))
             connection.commit()
             cursor.close()
@@ -101,8 +101,8 @@ class Database():
     def write_measures(self: Database) -> None:
         try:
             # Open connection
-            logging.debug("Connecting to database to write measures...")
-            connection = psycopg2.connect(**self.db_config)
+            logger.debug("Connecting to database to write measures...")
+            connection = psycopg2.connect(cfg.config.postgres_dsn())
             cursor = connection.cursor()
 
             while not self.measure_queue.empty():
@@ -115,6 +115,6 @@ class Database():
             connection.commit()
             cursor.close()
             connection.close()
-            logging.debug("Done writing measures !")
+            logger.debug("Done writing measures !")
         except psycopg2.DatabaseError as error:
             Database.log_psycopg2_exception(error)

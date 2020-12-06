@@ -7,6 +7,8 @@ from sensors.measure import Measure
 from datetime import datetime
 import logging
 
+logger = logging.getLogger('manager')
+
 
 class Manager():
 
@@ -20,15 +22,15 @@ class Manager():
         while not self.message_queue.empty():
             message: Dict[str, Any] = self.message_queue.get()
             if 'idsensor' not in message:
-                logging.error(f"Message without idsensor : {message}")
+                logger.error(f"Message without idsensor : {message}")
             elif message['idsensor'] == TX29IT.IDSENSOR:
                 self.tx29it.process_incoming_message(message)
             else:
-                logging.warn(f"Unknown message from {message['idsensor']}")
+                logger.warn(f"Unknown message from {message['idsensor']}")
 
     def publish_measures(self: Manager, timestamp: datetime) -> None:
         for sensor in self.sensors:
             measures = sensor.get_measures(timestamp)
             for measure in measures:
-                logging.info(f"{measure}")
+                logger.info(f"{measure}")
                 self.measure_queue.put(measure)
