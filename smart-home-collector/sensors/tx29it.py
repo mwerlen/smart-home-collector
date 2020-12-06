@@ -1,6 +1,7 @@
 from __future__ import annotations
 from sensors.metrics import Types
 from sensors.measure import Measure
+from sensors.sensor import SensorDefinition
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -9,11 +10,11 @@ class TX29IT:
 
     IDSENSOR = 'LaCrosse-TX29IT.ID=7'
 
-    SENSOR_DEFINITION = {
-        'idsensor': IDSENSOR,
-        'name': 'Thermomètre extérieur',
-        'location': 'Extérieur - Nord',
-    }
+    SENSOR_DEFINITION: SensorDefinition = SensorDefinition(
+        IDSENSOR,
+        'Thermomètre extérieur',
+        'Extérieur - Nord'
+    )
 
     METRIC_TYPES = [Types.TEMPERATURE, Types.BATTERY]
 
@@ -22,7 +23,7 @@ class TX29IT:
         self.latest_battery_ok: Optional[bool] = None
 
     @classmethod
-    def get_sensor_definition(cls) -> Dict[str, str]:
+    def get_sensor_definition(cls) -> SensorDefinition:
         return TX29IT.SENSOR_DEFINITION
 
     @classmethod

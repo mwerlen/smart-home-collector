@@ -15,9 +15,18 @@ class Database():
     def __init__(self: Database, config: Dict, db_config: Dict, measure_queue: Queue):
         self.db_config = db_config
         self.config = config
-        self.add_sensordata = ("INSERT INTO " + config['schema'] + ".sensors_data "
-                               "(time, idsensor, metric, data) "
-                               "VALUES ('{0}', '{1}', '{2}', {3})")
+        self.add_sensordata = (
+            "INSERT INTO " + config['schema'] + ".sensors_data "
+            " (time, idsensor, metric, data) "
+            " VALUES (%(time)s, %(idsensor)s, %(metric)s, %(data)s)"
+            ";")
+        self.add_sensor = (
+            "INSERT INTO " + self.config['schema'] + ".sensors"
+            "  VALUES (%(idsensor)s, %(name)s, %(location)s)"
+            "  ON CONFLICT (idsensor) DO "
+            "       UPDATE SET name=excluded.name,"
+            "                  location=excluded.location"
+            ";")
         self.measure_queue = measure_queue
 
     @staticmethod
@@ -30,7 +39,7 @@ class Database():
 
         # print the connect() error
         print(f"\n[{error.pgcode}] {error_type.__name__} on line number {line_num} :"
-              "\n{error.pgerror} ")
+              f"\n{error.pgerror} ")
 
         # if config['debug']:
         #   traceback.print_tb(stacktrace)
@@ -38,7 +47,7 @@ class Database():
 
     def check_structure(self: Database):
         try:
-            print("Connecting to database")
+            print("Connecting to database to update table structure")
             connection = psycopg2.connect(**self.db_config)
             cursor = connection.cursor()
 
@@ -69,24 +78,14 @@ class Database():
 
     def check_sensors_definition(self: Database, manager: Manager):
         try:
-            print("Connecting to database")
+            print("Connecting to database to update sensors definition")
             connection = psycopg2.connect(**self.db_config)
             cursor = connection.cursor()
 
-            SENSORS = {}
-            SENSORS['LaCrosse-TX29IT.ID=7'] = (
-                "INSERT INTO " + self.config['schema'] + ".sensors"
-                "  VALUES ('LaCrosse-TX29IT.ID=7',"
-                "          'Thermomètre extérieur',"
-                "          'Extérieur - Nord')"
-                "  ON CONFLICT (idsensor) DO "
-                "       UPDATE SET name=excluded.name,"
-                "                  location=excluded.location"
-                ";")
-
-            for name, ddl in SENSORS.items():
-                print(f"Checking sensor {name}")
-                cursor.execute(ddl)
+            for sensor in manager.sensors:
+                definition = sensor.get_sensor_definition()
+                print(f"Checking sensor {definition.idsensor}")
+                cursor.execute(self.add_sensor, vars(definition))
             connection.commit()
             cursor.close()
             connection.close()
@@ -96,7 +95,7 @@ class Database():
     def write_measures(self: Database):
         try:
             # Open connection
-            print("Connecting to database...")
+            print("Connecting to database to write measures...")
             connection = psycopg2.connect(**self.db_config)
             cursor = connection.cursor()
 
@@ -104,11 +103,7 @@ class Database():
                 measure: Measure = self.measure_queue.get()
                 if measure.metric == Types.BATTERY:
                     continue
-                print(measure)
-                dml = self.add_sensordata.format(*(measure.tuple()))
-                if self.config['debug']:
-                    print(f"DML : {dml}")
-                cursor.execute(dml)
+                cursor.execute(self.add_sensordata, measure.sql_value())
 
             # Make sure data is committed to the database
             connection.commit()
@@ -117,4 +112,3 @@ class Database():
             print("Done !")
         except psycopg2.DatabaseError as error:
             Database.print_psycopg2_exception(error)
-            print("Error connecting to database")

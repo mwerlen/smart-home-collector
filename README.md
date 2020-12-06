@@ -12,7 +12,6 @@ To-do list
 * Create a "domotic" or "Home automation" or "Smart Home" role in Ansible to provision it on server
 * Replace print by a logger
 * type SDR
-* Make sensors configuration in database dynamic (using sensor definition)
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
 
 

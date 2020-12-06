@@ -8,7 +8,7 @@ from datetime import datetime
 class Sensor(Protocol):
 
     @classmethod
-    def get_sensor_definition(cls) -> Dict[str, str]:
+    def get_sensor_definition(cls) -> SensorDefinition:
         pass
 
     @classmethod
@@ -20,3 +20,11 @@ class Sensor(Protocol):
 
     def get_measures(self: Sensor, timestamp: datetime) -> list:
         pass
+
+
+class SensorDefinition(object):
+
+    def __init__(self: SensorDefinition, idsensor: str, name: str, location: str):
+        self.idsensor = idsensor
+        self.name = name
+        self.location = location
