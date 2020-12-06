@@ -9,10 +9,10 @@ from queue import Queue
 
 class SignalReader(threading.Thread):
 
-    def __init__(self: SignalReader, config: Dict[str, Any], message_queue: Queue):
+    def __init__(self: SignalReader, config: Dict[str, Any], message_queue: Queue[Dict[str, Any]]):
         threading.Thread.__init__(self)
         self.config: Dict[str, Any] = config
-        self.message_queue: Queue = message_queue
+        self.message_queue: Queue[Dict[str, Any]] = message_queue
 
     def run(self: SignalReader) -> None:
         print("\nStarting sub process " + ' '.join(self.config['commandline']) + "\n")
@@ -39,7 +39,7 @@ class SignalReader(threading.Thread):
                 if self.config['debug']:
                     print(line.rstrip())
 
-                message: Dict = json.loads(line)
+                message: Dict[str, Any] = json.loads(line)
                 label: str = SignalReader.sanitize(message["model"])
                 acquisitiondate: datetime = datetime.now()
 
@@ -64,7 +64,7 @@ class SignalReader(threading.Thread):
     def sanitize(text: str) -> str:
         return text.replace(" ", "_")
 
-    def close(self: SignalReader):
+    def close(self: SignalReader) -> None:
         # Terminate subprocess
         if self.process is not None and self.process.poll() is None:
             self.process.terminate()

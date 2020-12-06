@@ -26,7 +26,7 @@ pyflakes:
 
 mypy:
 	@echo "mypy"
-	@.venv/bin/mypy smart-home-collector/main.py || true
+	@.venv/bin/mypy --strict smart-home-collector/main.py || true
 
 postgres:
 	@docker run --rm \

@@ -2,7 +2,7 @@ from __future__ import annotations
 from sensors.metrics import Types
 from sensors.measure import Measure
 from sensors.sensor import SensorDefinition
-from typing import Dict, Optional, List, Type
+from typing import Dict, Optional, List, Type, Any
 from datetime import datetime
 
 
@@ -18,7 +18,7 @@ class TX29IT:
 
     METRIC_TYPES = [Types.TEMPERATURE, Types.BATTERY]
 
-    def __init__(self):
+    def __init__(self: TX29IT):
         self.latest_temperature: Optional[float] = None
         self.latest_battery_ok: Optional[bool] = None
 
@@ -30,7 +30,7 @@ class TX29IT:
     def get_sensor_metric_types(cls: Type[TX29IT]) -> List[Types]:
         return TX29IT.METRIC_TYPES
 
-    def process_incoming_message(self: TX29IT, message: Dict):
+    def process_incoming_message(self: TX29IT, message: Dict[str, Any]) -> None:
         if "battery_ok" in message:
             self.latest_battery_ok = message['battery_ok']
 
