@@ -36,8 +36,8 @@ config = {
 }
 
 scheduler = sched.scheduler(time.time, time.sleep)
-process_cron = croniter(config['process_data_cron'], timezone.localize(datetime.now()))
-write_cron = croniter(config['write_data_cron'], timezone.localize(datetime.now()))
+process_cron = croniter(str(config['process_data_cron']), timezone.localize(datetime.now()))
+write_cron = croniter(str(config['write_data_cron']), timezone.localize(datetime.now()))
 
 
 def get_measures(manager: Manager):

@@ -1,23 +1,20 @@
+from __future__ import annotations
 import subprocess
 import json
 import threading
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Any
 from queue import Queue
-
-
-def sanitize(text):
-    return text.replace(" ", "_")
 
 
 class SignalReader(threading.Thread):
 
-    def __init__(self, config: Dict, message_queue: Queue):
+    def __init__(self: SignalReader, config: Dict[str, Any], message_queue: Queue):
         threading.Thread.__init__(self)
-        self.config = config
-        self.message_queue = message_queue
+        self.config: Dict[str, Any] = config
+        self.message_queue: Queue = message_queue
 
-    def run(self):
+    def run(self: SignalReader) -> None:
         print("\nStarting sub process " + ' '.join(self.config['commandline']) + "\n")
 
         # Launch the command as subprocess.
@@ -27,6 +24,10 @@ class SignalReader(threading.Thread):
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT,
                                         text=True)
+
+        if self.process.stdout is None:
+            self.close()
+            return
 
         for line in iter(self.process.stdout.readline, ''):
 
@@ -38,9 +39,9 @@ class SignalReader(threading.Thread):
                 if self.config['debug']:
                     print(line.rstrip())
 
-                message = json.loads(line)
-                label = sanitize(message["model"])
-                acquisitiondate = datetime.now()
+                message: Dict = json.loads(line)
+                label: str = SignalReader.sanitize(message["model"])
+                acquisitiondate: datetime = datetime.now()
 
                 if "channel" in message:
                     label += ".CH=" + str(message["channel"])
@@ -59,7 +60,11 @@ class SignalReader(threading.Thread):
             print(f'Return code from RTL_433 [{self.process.pid}]: {self.process.poll()}')
             self.close()
 
-    def close(self):
+    @staticmethod
+    def sanitize(text: str) -> str:
+        return text.replace(" ", "_")
+
+    def close(self: SignalReader):
         # Terminate subprocess
         if self.process is not None and self.process.poll() is None:
             self.process.terminate()

@@ -11,7 +11,6 @@ To-do list
 * Add a configuration parser to read _ini_ style configuration files
 * Create a "domotic" or "Home automation" or "Smart Home" role in Ansible to provision it on server
 * Replace print by a logger
-* type SDR
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
 
 
