@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8 :
 # Inspired from : https://github.com/jcarduino/rtl_433_2db
 
+import logging
 import sched
 import time
 import sys
@@ -34,7 +35,6 @@ config = {
   'write_data_cron': '* * * * * 0,30',  # every 2 minutes
   'process_data_cron': '* * * * * 0,15,30,45',   # every minute
   'schema': 'public',
-  'debug': True,
   'commandline': ["/usr/local/bin/rtl_433", "-C", "si", "-f", "868M", "-F", "json", "-M", "utc", "-R76"]
 }
 
@@ -48,8 +48,7 @@ def get_measures(manager: Manager) -> None:
     while rundate <= timezone.localize(datetime.now()):
         rundate = write_cron.get_next(datetime)
     runtime = rundate.timestamp()
-    if config['debug']:
-        print(f"Scheduling get_measures run at {str(rundate)}")
+    logging.debug(f"Scheduling get_measures run at {str(rundate)}")
     scheduler.enterabs(runtime, 1, check_reader)
     scheduler.enterabs(runtime, 2, manager.dispatch_messages)
     scheduler.enterabs(runtime, 3, manager.publish_measures, argument=(rundate,))
@@ -61,8 +60,7 @@ def store_measures(database: Database) -> None:
     while rundate <= timezone.localize(datetime.now()):
         rundate = write_cron.get_next(datetime)
     runtime = rundate.timestamp()
-    if config['debug']:
-        print(f"Scheduling store_measures run at {str(rundate)}")
+    logging.debug(f"Scheduling store_measures run at {str(rundate)}")
     scheduler.enterabs(runtime, 2, database.write_measures)
     scheduler.enterabs(runtime, 3, store_measures, argument=(database,))
 
@@ -73,11 +71,11 @@ def check_reader() -> None:
 
 
 def close_all() -> NoReturn:
-    print("Closing down")
+    logging.info("Closing down")
 
     # Cancel all futur events
     for event in scheduler.queue:
-        print(f"Canceling {event}")
+        logging.debug(f"Canceling {event}")
         scheduler.cancel(event)
 
     reader.close()
@@ -87,7 +85,7 @@ def close_all() -> NoReturn:
 
 
 def signal_handler(sig: int, frame: Any) -> NoReturn:
-    print("SIGINT signal received")
+    logging.warning("SIGINT signal received")
     close_all()
     sys.exit(0)
 
@@ -95,6 +93,9 @@ def signal_handler(sig: int, frame: Any) -> NoReturn:
 def run() -> None:
     # Handle signals
     signal.signal(signal.SIGINT, signal_handler)
+
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s\t%(message)s')
 
     # Create queues
     message_queue: Queue[Dict[str, Any]] = Queue()

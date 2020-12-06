@@ -2,6 +2,7 @@ from __future__ import annotations
 import subprocess
 import json
 import threading
+import logging
 from datetime import datetime
 from typing import Dict, Any
 from queue import Queue
@@ -15,7 +16,7 @@ class SignalReader(threading.Thread):
         self.message_queue: Queue[Dict[str, Any]] = message_queue
 
     def run(self: SignalReader) -> None:
-        print("\nStarting sub process " + ' '.join(self.config['commandline']) + "\n")
+        logging.info("Starting sub process " + ' '.join(self.config['commandline']))
 
         # Launch the command as subprocess.
         self.process = subprocess.Popen(self.config['commandline'],
@@ -32,12 +33,11 @@ class SignalReader(threading.Thread):
         for line in iter(self.process.stdout.readline, ''):
 
             if not line.startswith("{"):
-                # this is a message from RTL_433, print it
-                print(line.rstrip())
+                # this is a message from RTL_433, log it
+                logging.info(line.rstrip())
             else:
                 # This is Json data, load it
-                if self.config['debug']:
-                    print(line.rstrip())
+                logging.debug(line.rstrip())
 
                 message: Dict[str, Any] = json.loads(line)
                 label: str = SignalReader.sanitize(message["model"])
@@ -57,7 +57,7 @@ class SignalReader(threading.Thread):
                 self.close()
 
         if self.process.poll() is not None:
-            print(f'Return code from RTL_433 [{self.process.pid}]: {self.process.poll()}')
+            logging.error(f'Return code from RTL_433 [{self.process.pid}]: {self.process.poll()}')
             self.close()
 
     @staticmethod

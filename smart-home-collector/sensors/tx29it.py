@@ -4,6 +4,7 @@ from sensors.measure import Measure
 from sensors.sensor import SensorDefinition
 from typing import Dict, Optional, List, Type, Any
 from datetime import datetime
+import logging
 
 
 class TX29IT:
@@ -35,7 +36,8 @@ class TX29IT:
             self.latest_battery_ok = message['battery_ok']
 
         if "temperature_C" in message:
-            print(f'Received from {TX29IT.IDSENSOR} : Temperature {message["temperature_C"]}')
+            logging.debug(f"Received from {TX29IT.IDSENSOR} :"
+                          f"Temperature {message['temperature_C']}")
             self.latest_temperature = message['temperature_C']
 
     def get_measures(self: TX29IT, time: datetime) -> List[Measure]:
