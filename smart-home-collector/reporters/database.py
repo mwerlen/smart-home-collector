@@ -4,7 +4,7 @@ import sys
 import logging
 from psycopg2 import DatabaseError  # type: ignore
 import psycopg2
-from sensors.manager import Manager
+from manager import Manager
 from sensors.metrics import Types
 from sensors.measure import Measure
 import cfg

@@ -34,3 +34,7 @@ class Manager():
             for measure in measures:
                 logger.info(f"{measure}")
                 self.measure_queue.put(measure)
+
+    def messages_to_measures(self: Manager, rundate: datetime) -> None:
+        self.dispatch_messages()
+        self.publish_measures(rundate)
