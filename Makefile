@@ -12,21 +12,21 @@ init:
 	.venv/bin/pip install -r requirements.txt
 
 test:
-	@echo "Not implemented yet"
+	@./.venv/bin/python3 -m unittest discover -s tests -t . -v
 
 checkstyle: pycodestyle pyflakes mypy
 
 pycodestyle:
 	@echo "Pycodestyle..."
-	@.venv/bin/pycodestyle smart-home-collector || true
+	@.venv/bin/pycodestyle shcollector tests || true
 
 pyflakes:
 	@echo "Pyflakes..."
-	@.venv/bin/pyflakes smart-home-collector || true
+	@.venv/bin/pyflakes shcollector tests || true
 
 mypy:
 	@echo "mypy"
-	@.venv/bin/mypy --strict smart-home-collector/main.py || true
+	@.venv/bin/mypy --strict shcollector/main.py || true
 
 postgres:
 	@docker run --rm \

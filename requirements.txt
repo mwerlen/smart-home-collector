@@ -5,3 +5,4 @@ croniter
 pytz
 typing_extensions
 mypy
+freezegun
