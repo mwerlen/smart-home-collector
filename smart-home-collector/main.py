@@ -4,9 +4,10 @@
 
 import logging
 import sys
+import argparse
 import signal
 from queue import Queue
-from typing import Any, Dict, NoReturn, List, Callable
+from typing import Any, Dict, NoReturn, List, Callable, Optional
 
 from reporters.database import Database
 from sensors.measure import Measure
@@ -37,9 +38,14 @@ def signal_handler(sig: int, frame: Any) -> NoReturn:
     sys.exit(0)
 
 
-def run() -> None:
+def run(debug: bool, config_file: Optional[str]) -> None:
     # Handle signals
     signal.signal(signal.SIGINT, signal_handler)
+
+    # Apply config
+    if config_file is not None:
+        cfg.config.set_config_file(config_file)
+    cfg.config.set_debug(debug)
 
     # Create queues
     message_queue: Queue[Dict[str, Any]] = Queue()
@@ -105,4 +111,10 @@ def run() -> None:
 
 
 if __name__ == '__main__':
-    run()
+    # handle flags
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", help="Activer les logs de debug", action="store_true")
+    parser.add_argument("-c", "--config", help="Spécifier un fichier de configuration")
+    args = parser.parse_args()
+
+    run(args.debug, args.config)

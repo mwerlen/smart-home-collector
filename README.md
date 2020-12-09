@@ -9,7 +9,6 @@ This script also store in files the battery status of sensors to be check by a m
 To-do list
 ----------
 
-* Add a shlex parser to allow simpler debug and specify a configuration file
 * Add unit tests (next run computing, close_all..)
 * Create a "domotic" or "Home automation" or "Smart Home" role in Ansible to provision it on server
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
@@ -19,7 +18,7 @@ Architecture
 ------------
 
 Modules:
-* Main : Initialize other modules and schedule actions
+* Main : Initialize other modules and parse command line options
 * SDR : Spawn RTL433 and read periodically
 * Sensors : Handle sensors messages (radio signal) and transformation it into measure object
 * Manager : Receives messages, dispatch it to specialized classes and get measures back at regular interval

@@ -43,4 +43,13 @@ psql:
 run:
 	@.venv/bin/python3 smart-home-collector/main.py
 
+debug:
+	@.venv/bin/python3 smart-home-collector/main.py -d
+
+simulator:
+	@.venv/bin/python3 smart-home-collector/main.py -c tests/debug.ini
+
+debug-simulator:
+	@.venv/bin/python3 smart-home-collector/main.py -d -c tests/debug.ini
+
 .PHONY: init test checkstyle postgres psql

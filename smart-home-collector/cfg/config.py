@@ -25,3 +25,10 @@ class Config(ConfigParser):
                 f" password={self['Database']['password']}"
                 f" host={self['Database']['host']}"
                 f" port={self['Database']['port']}")
+
+    def set_config_file(self: Config, config_file: str) -> None:
+        self.read(config_file)
+
+    def set_debug(self: Config, debug: bool) -> None:
+        if debug:
+            logging.getLogger().setLevel(logging.DEBUG)
