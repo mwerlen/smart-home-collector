@@ -41,15 +41,15 @@ psql:
 	@PGPASSWORD=metrics psql -h localhost metrics metrics
 
 run:
-	@.venv/bin/python3 smart-home-collector/main.py
+	@.venv/bin/python3 shcollector/main.py
 
 debug:
-	@.venv/bin/python3 smart-home-collector/main.py -d
+	@.venv/bin/python3 shcollector/main.py -d
 
 simulator:
-	@.venv/bin/python3 smart-home-collector/main.py -c tests/debug.ini
+	@.venv/bin/python3 shcollector/main.py -c tests/debug.ini
 
 debug-simulator:
-	@.venv/bin/python3 smart-home-collector/main.py -d -c tests/debug.ini
+	@.venv/bin/python3 shcollector/main.py -d -c tests/debug.ini
 
 .PHONY: init test checkstyle postgres psql
