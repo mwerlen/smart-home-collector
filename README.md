@@ -9,8 +9,8 @@ This script also store in files the battery status of sensors to be check by a m
 To-do list
 ----------
 
+* Handle closing by systemd smoothly (store data before exit)
 * Add unit tests (next run computing, close_all..)
-* Create a "domotic" or "Home automation" or "Smart Home" role in Ansible to provision it on server
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
 
 
