@@ -2,6 +2,7 @@ from __future__ import annotations
 from configparser import ConfigParser
 import os
 import logging
+import logging.handlers
 
 logger = logging.getLogger("config")
 
@@ -18,6 +19,10 @@ class Config(ConfigParser):
     def apply_loggers_level(self: Config) -> None:
         # Configure logging
         logging.basicConfig(level=self.get('Log', 'level'), format=self.get('Log', 'format'))
+        if 'logfile' in self['Log'] and len(self['Log']['logfile']) > 0:
+            file_handler = logging.handlers.WatchedFileHandler(self.get('Log', 'logfile'))
+            file_handler.setFormatter(logging.Formatter(self.get('Log', 'format')))
+            logging.getLogger().addHandler(file_handler)
 
     def postgres_dsn(self: Config) -> str:
         return (f"dbname={self['Database']['database']}"
