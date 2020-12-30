@@ -77,5 +77,5 @@ class SignalReader(threading.Thread):
 
     def close(self: SignalReader) -> None:
         # Terminate subprocess
-        if self.process is not None and self.process.poll() is None:
+        if hasattr(self, 'process') and self.process is not None and self.process.poll() is None:
             self.process.terminate()

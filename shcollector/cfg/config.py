@@ -20,6 +20,7 @@ class Config(ConfigParser):
         # Configure logging
         logging.basicConfig(level=self.get('Log', 'level'), format=self.get('Log', 'format'))
         if 'logfile' in self['Log'] and len(self['Log']['logfile']) > 0:
+            logging.debug(f"Log file configured : {self['Log']['logfile']}")
             file_handler = logging.handlers.WatchedFileHandler(self.get('Log', 'logfile'))
             file_handler.setFormatter(logging.Formatter(self.get('Log', 'format')))
             logging.getLogger().addHandler(file_handler)
@@ -37,7 +38,12 @@ class Config(ConfigParser):
 
     def set_config_file(self: Config, config_file: str) -> None:
         self.read(config_file)
+        self.apply_loggers_level()
+        logger.debug(f"Loaded file {config_file} with sections {self.sections()}")
+        logger.info(f"New postgres dsn : {self.postgres_dsn()}")
+
 
     def set_debug(self: Config, debug: bool) -> None:
         if debug:
             logging.getLogger().setLevel(logging.DEBUG)
+            logging.debug("Log level is now debug")

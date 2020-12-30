@@ -47,9 +47,12 @@ class Database():
         else:
             line_num = str(stacktrace.tb_lineno)
 
-        # Log the connect() error
-        logger.error(f"\n[{error.pgcode}] {error_name} on line number {line_num} :"
-                     f"\n{error.pgerror} ")
+        # Log the error
+        if hasattr(error, 'pgerror') and error.pgerror is not None:
+            logger.error(f"[{error.pgcode}] {error_name} on line number {line_num} :"
+                         f"\n{error.pgerror} ")
+        else:
+            logger.error(error)
 
     def check_structure(self: Database) -> None:
         try:
