@@ -25,11 +25,15 @@ class Config(ConfigParser):
             logging.getLogger().addHandler(file_handler)
 
     def postgres_dsn(self: Config) -> str:
-        return (f"dbname={self['Database']['database']}"
-                f" user={self['Database']['user']}"
-                f" password={self['Database']['password']}"
-                f" host={self['Database']['host']}"
-                f" port={self['Database']['port']}")
+        dsn = f"dbname={self['Database']['database']}"
+        dsn += f" user={self['Database']['user']}"
+        dsn += f" host={self['Database']['host']}"
+        dsn += f" port={self['Database']['port']}"
+
+        if 'password' in self['Database'] and len(self['Database']['password']) > 0:
+            dsn += f" password={self['Database']['password']}"
+
+        return dsn
 
     def set_config_file(self: Config, config_file: str) -> None:
         self.read(config_file)
