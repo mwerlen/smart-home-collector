@@ -42,7 +42,6 @@ class Config(ConfigParser):
         logger.debug(f"Loaded file {config_file} with sections {self.sections()}")
         logger.info(f"New postgres dsn : {self.postgres_dsn()}")
 
-
     def set_debug(self: Config, debug: bool) -> None:
         if debug:
             logging.getLogger().setLevel(logging.DEBUG)
