@@ -18,29 +18,42 @@ import cfg
 
 
 logger = logging.getLogger('main')
-closebacks: List[Callable[[], None]] = []
+kill_callback: List[Callable[[], None]] = []
+close_callback: List[Callable[[], None]] = []
 
 
 def close_all() -> NoReturn:
     logger.info("Closing down")
 
-    # On appelle tous les callback de fermeture
-    for closeback in closebacks:
-        closeback()
+    # On appelle tous les callback de d'arrêt
+    for callback in kill_callback:
+        callback()
 
     # bye
     sys.exit(0)
 
 
-def signal_handler(sig: int, frame: Any) -> NoReturn:
+def interrup_signal_handler(sig: int, frame: Any) -> NoReturn:
     logger.warning("SIGINT signal received")
+    close_all()
+    sys.exit(0)
+
+
+def termination_signal_handler(sig: int, frame: Any) -> NoReturn:
+    logger.warning("SIGTERM signal received")
+
+    # On appelle tous les callback de fermture
+    for callback in close_callback:
+        callback()
+
     close_all()
     sys.exit(0)
 
 
 def run(debug: bool, config_file: Optional[str]) -> None:
     # Handle signals
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, interrup_signal_handler)
+    signal.signal(signal.SIGTERM, termination_signal_handler)
 
     # Apply config
     if config_file is not None:
@@ -53,7 +66,7 @@ def run(debug: bool, config_file: Optional[str]) -> None:
 
     # Initialize CronScheduler
     cron: CronScheduler = CronScheduler()
-    closebacks.append(cron.cancel)
+    kill_callback.append(cron.cancel)
 
     # Initialize database
     database: Database = Database(measure_queue)
@@ -69,7 +82,7 @@ def run(debug: bool, config_file: Optional[str]) -> None:
         reader.close()
         reader.join()
 
-    closebacks.append(close_reader)
+    kill_callback.append(close_reader)
 
     # check function
     def check_reader() -> None:
@@ -104,6 +117,8 @@ def run(debug: bool, config_file: Optional[str]) -> None:
                                   {},
                                   False)
     cron.schedule(store_measures_job)
+
+    close_callback.append(database.write_measures)
 
     # Launch processes
     reader.start()
