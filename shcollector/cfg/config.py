@@ -30,6 +30,7 @@ class Config(ConfigParser):
         dsn += f" user={self['Database']['user']}"
         dsn += f" host={self['Database']['host']}"
         dsn += f" port={self['Database']['port']}"
+        dsn += f" connect_timeout={self['Database']['connect_timeout']}"
 
         if 'password' in self['Database'] and len(self['Database']['password']) > 0:
             dsn += f" password={self['Database']['password']}"

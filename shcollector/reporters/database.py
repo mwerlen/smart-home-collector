@@ -102,6 +102,7 @@ class Database():
             Database.log_psycopg2_exception(error)
 
     def write_measures(self: Database) -> None:
+        success: bool = True
         try:
             # Open connection
             logger.debug("Connecting to database to write measures...")
@@ -110,9 +111,12 @@ class Database():
 
             while not self.measure_queue.empty():
                 measure: Measure = self.measure_queue.get()
+                success = False
                 if measure.metric == Types.BATTERY:
                     continue
+                logger.debug(f"Write measure {measure}")
                 cursor.execute(self.add_sensordata, measure.sql_value())
+                success = True
 
             # Make sure data is committed to the database
             connection.commit()
@@ -121,3 +125,7 @@ class Database():
             logger.debug("Done writing measures !")
         except psycopg2.DatabaseError as error:
             Database.log_psycopg2_exception(error)
+        finally:
+            # Handle exception during database write
+            if success is False:
+                self.measure_queue.put(measure)
