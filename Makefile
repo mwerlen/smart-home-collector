@@ -1,11 +1,14 @@
 # vim: noexpandtab filetype=make
 help:
-	@echo "make init		- Create venv and install requirements"
-	@echo "make run			- Launch sensors' data collection"
-	@echo "make test		- Launch tests"
-	@echo "make checkstyle	- Run a checkstyle analysis"
-	@echo "make postgres	- Run a postgres 12 container in foreground"
-	@echo "make psql		- Run a psql console"
+	@echo "make init			- Create venv and install requirements"
+	@echo "make run				- Launch sensors' data collection"
+	@echo "make debug			- Launch sensors' data collection with debug logs"
+	@echo "make simulator		- Launch sensors' data collection in simulation mode"
+	@echo "make debug-simulator	- Launch sensors' data collection in simulation mode with debug logs"
+	@echo "make test			- Launch tests"
+	@echo "make checkstyle		- Run a checkstyle analysis"
+	@echo "make postgres		- Run a postgres 12 container in foreground"
+	@echo "make psql			- Run a psql console"
 
 init:
 	python3 -m venv .venv
