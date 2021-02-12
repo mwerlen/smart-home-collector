@@ -9,7 +9,6 @@ This script also store in files the battery status of sensors to be check by a m
 To-do list
 ----------
 
-* Add a nice database diagram
 * Add unit tests (next run computing, close_all..)
 * Use two reporter (one for file/battery) and uses an accept function to dispatch measures
 
@@ -25,5 +24,11 @@ Modules:
 * Database : Stores measures to database
 * Config : retrieves parameters from configuration file and makes them available to other modules
 * Cron & Job : Schedule jobs by cron-like expressions
+
+
+Database schema
+---------------
+
+![Database schema](database_schema.svg?raw=true "Database schema")
 
 [modeline]: # ( vim: set spelllang=en: )
