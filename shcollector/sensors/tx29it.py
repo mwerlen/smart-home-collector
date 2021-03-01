@@ -49,11 +49,13 @@ class TX29IT:
                             TX29IT.IDSENSOR,
                             Types.TEMPERATURE,
                             self.latest_temperature))
+            self.latest_temperature = None
 
         if self.latest_battery_ok is not None:
             measures.append(Measure(time,
                             TX29IT.IDSENSOR,
                             Types.BATTERY,
                             self.latest_battery_ok))
+            self.latest_battery_ok = None
 
         return measures
