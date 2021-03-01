@@ -56,8 +56,8 @@ class SignalReader(threading.Thread):
 
                 if "channel" in message:
                     label += ".CH=" + str(message["channel"])
-                elif "id" in message:
-                    label += ".ID=" + str(message["id"])
+                # elif "id" in message:
+                #    label += ".ID=" + str(message["id"])
 
                 message['idsensor'] = label
                 message['acquisitiondate'] = acquisitiondate

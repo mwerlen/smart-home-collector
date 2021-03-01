@@ -11,7 +11,7 @@ logger = logging.getLogger("tx29it")
 
 class TX29IT:
 
-    IDSENSOR = 'LaCrosse-TX29IT.ID=7'
+    IDSENSOR = 'LaCrosse-TX29IT'
 
     SENSOR_DEFINITION: SensorDefinition = SensorDefinition(
         IDSENSOR,
