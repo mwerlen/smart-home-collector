@@ -8,8 +8,7 @@ from datetime import datetime
 
 class Sensor(Protocol):
 
-    @classmethod
-    def get_sensor_definition(cls: Type[Sensor]) -> SensorDefinition:
+    def get_sensor_definition(self: Sensor) -> SensorDefinition:
         pass
 
     @classmethod
@@ -25,7 +24,8 @@ class Sensor(Protocol):
 
 class SensorDefinition(object):
 
-    def __init__(self: SensorDefinition, idsensor: str, name: str, location: str):
-        self.idsensor = idsensor
+    def __init__(self: SensorDefinition, radio_id: str, database_id: str, name: str, location: str):
+        self.radio_id = radio_id
+        self.database_id = database_id
         self.name = name
         self.location = location

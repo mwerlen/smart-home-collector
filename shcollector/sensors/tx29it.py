@@ -11,23 +11,21 @@ logger = logging.getLogger("tx29it")
 
 class TX29IT:
 
-    IDSENSOR = 'LaCrosse-TX29IT'
-
-    SENSOR_DEFINITION: SensorDefinition = SensorDefinition(
-        IDSENSOR,
-        'Thermomètre extérieur',
-        'Extérieur - Nord'
-    )
-
+    SENSOR_TYPE_NAME = "TX29IT"
     METRIC_TYPES = [Types.TEMPERATURE, Types.BATTERY]
 
-    def __init__(self: TX29IT):
+    def __init__(self: TX29IT, radio_id: str, database_id: str, name: str, location: str):
         self.latest_temperature: Optional[float] = None
         self.latest_battery_ok: Optional[bool] = None
+        self.radio_id: str = radio_id
+        self.database_id: str = database_id
+        self.sensor_definition: SensorDefinition = SensorDefinition(radio_id,
+                                                                    database_id,
+                                                                    name,
+                                                                    location)
 
-    @classmethod
-    def get_sensor_definition(cls: Type[TX29IT]) -> SensorDefinition:
-        return TX29IT.SENSOR_DEFINITION
+    def get_sensor_definition(self: TX29IT) -> SensorDefinition:
+        return self.sensor_definition
 
     @classmethod
     def get_sensor_metric_types(cls: Type[TX29IT]) -> List[Types]:
@@ -38,7 +36,7 @@ class TX29IT:
             self.latest_battery_ok = message['battery_ok']
 
         if "temperature_C" in message:
-            logger.debug(f"Received from {TX29IT.IDSENSOR} :"
+            logger.debug(f"Received from {self.radio_id} for {self.database_id} :"
                          f"Temperature {message['temperature_C']}")
             self.latest_temperature = message['temperature_C']
 
@@ -46,14 +44,14 @@ class TX29IT:
         measures: List[Measure] = []
         if self.latest_temperature is not None:
             measures.append(Measure(time,
-                            TX29IT.IDSENSOR,
+                            self.database_id,
                             Types.TEMPERATURE,
                             self.latest_temperature))
             self.latest_temperature = None
 
         if self.latest_battery_ok is not None:
             measures.append(Measure(time,
-                            TX29IT.IDSENSOR,
+                            self.database_id,
                             Types.BATTERY,
                             self.latest_battery_ok))
             self.latest_battery_ok = None

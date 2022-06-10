@@ -1,8 +1,11 @@
 pyflakes
 pycodestyle
 psycopg2-binary
+types-psycopg2
 croniter
+types-croniter
 pytz
+types-pytz
 typing_extensions
 mypy
 freezegun

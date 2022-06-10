@@ -13,6 +13,7 @@ help:
 init:
 	python3 -m venv .venv
 	.venv/bin/pip install -r requirements.txt
+	.venv/bin/mypy --install-types
 
 test:
 	@./.venv/bin/python3 -m unittest discover -s tests -t . -v

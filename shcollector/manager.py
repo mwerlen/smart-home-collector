@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Dict, List, Any
+from typing import Dict, Any
 from sensors.tx29it import TX29IT
 from queue import Queue
 from sensors.sensor import Sensor
 from sensors.measure import Measure
 from datetime import datetime
 import logging
+import cfg
 
 logger = logging.getLogger('manager')
 
@@ -13,23 +14,43 @@ logger = logging.getLogger('manager')
 class Manager():
 
     def __init__(self, message_queue: Queue[Dict[str, Any]], measure_queue: Queue[Measure]):
-        self.tx29it = TX29IT()
-        self.sensors: List[Sensor] = [self.tx29it]
+        self.sensors: Dict[str, Sensor] = {}
+        self.build_sensors()
         self.message_queue: Queue[Dict[str, Any]] = message_queue
         self.measure_queue: Queue[Measure] = measure_queue
+
+    def build_sensors(self: Manager) -> None:
+        for section_name in cfg.config.sections():
+            if section_name.startswith("sensor:"):
+                section = cfg.config[section_name]
+                sensor_type = section['type']
+                if sensor_type == TX29IT.SENSOR_TYPE_NAME:
+                    sensor = TX29IT(
+                        section['radio_id'],
+                        section['database_id'],
+                        section['name'],
+                        section['location'])
+                    self.sensors[section['radio_id']] = sensor
+                    logger.debug(f"Registered sensor : {section['name']}")
+                else:
+                    logger.warn(f"Unknown sensor config {section_name} with type {sensor_type}")
+                    continue
+            else:
+                pass
 
     def dispatch_messages(self: Manager) -> None:
         while not self.message_queue.empty():
             message: Dict[str, Any] = self.message_queue.get()
-            if 'idsensor' not in message:
-                logger.error(f"Message without idsensor : {message}")
-            elif message['idsensor'] == TX29IT.IDSENSOR:
-                self.tx29it.process_incoming_message(message)
+            if 'radio_id' not in message:
+                logger.error(f"Message without radio_id : {message}")
+            elif message['radio_id'] in self.sensors.keys():
+                sensor = self.sensors[message['radio_id']]
+                sensor.process_incoming_message(message)
             else:
-                logger.warn(f"Unknown message from {message['idsensor']}")
+                logger.warn(f"Unknown message from {message['radio_id']}")
 
     def publish_measures(self: Manager, timestamp: datetime) -> None:
-        for sensor in self.sensors:
+        for sensor in self.sensors.values():
             measures = sensor.get_measures(timestamp)
             for measure in measures:
                 logger.info(f"{measure}")
