@@ -18,6 +18,7 @@ class Manager():
         self.build_sensors()
         self.message_queue: Queue[Dict[str, Any]] = message_queue
         self.measure_queue: Queue[Measure] = measure_queue
+        self.latest_values: Dict[int, Measure] = {}
 
     def build_sensors(self: Manager) -> None:
         for section_name in cfg.config.sections():
@@ -53,8 +54,13 @@ class Manager():
         for sensor in self.sensors.values():
             measures = sensor.get_measures(timestamp)
             for measure in measures:
-                logger.info(f"{measure}")
-                self.measure_queue.put(measure)
+                latest_val = self.latest_values.get(measure.get_cache_key())
+                if latest_val and abs(latest_val.data - measure.data) > measure.metric.threshold():
+                    logger.info(f"Incoherent value (Δ_temp > 5) : {measure}")
+                else:
+                    logger.info(f"{measure}")
+                    self.measure_queue.put(measure)
+                    self.latest_values[measure.get_cache_key()] = measure
 
     def messages_to_measures(self: Manager, rundate: datetime) -> None:
         self.dispatch_messages()

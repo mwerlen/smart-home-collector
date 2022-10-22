@@ -9,3 +9,9 @@ class Types(Enum):
 
     def __str__(self: Types) -> str:
         return self.name
+
+    def threshold(self: Types) -> int:
+        if self == Types.TEMPERATURE:
+            return 5
+        else:
+            return 99

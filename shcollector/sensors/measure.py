@@ -22,3 +22,6 @@ class Measure(object):
                 'metric': self.metric.name,  # Here we handle enum to str conversion
                 'data': self.data
                }
+
+    def get_cache_key(self: Measure) -> int:
+        return hash((self.database_id, self.metric))
