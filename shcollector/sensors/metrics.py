@@ -4,7 +4,7 @@ from enum import Enum
 
 class Types(Enum):
     TEMPERATURE = "Température"
-    HUMIDITE = "Humidité"
+    HUMIDITY = "Humidité"
     BATTERY = "Batterie"
 
     def __str__(self: Types) -> str:
@@ -13,5 +13,7 @@ class Types(Enum):
     def threshold(self: Types) -> int:
         if self == Types.TEMPERATURE:
             return 5
+        elif self == Types.HUMIDITY:
+            return 10
         else:
             return 99

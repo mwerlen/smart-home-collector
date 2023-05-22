@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Any
 from sensors.lacrossetx29it import LaCrosseTX29IT
+from sensors.thermoprotx2c import ThermoProTX2C
 from queue import Queue
 from sensors.sensor import Sensor
 from sensors.measure import Measure
@@ -34,6 +35,14 @@ class Manager:
                         section['location'])
                     self.sensors[section['radio_id']] = sensor
                     logger.debug(f"Registered sensor : {section['name']}")
+                elif sensor_type == ThermoProTX2C.SENSOR_TYPE_NAME:
+                    sensor = ThermoProTX2C(
+                        section['radio_id'],
+                        section['database_id'],
+                        section['name'],
+                        section['location'])
+                    self.sensors[section['radio_id']] = sensor
+                    logger.debug(f"Registered sensor : {section['name']}")
                 else:
                     logger.warning(f"Unknown sensor config {section_name} with type {sensor_type}")
                     continue
@@ -57,7 +66,7 @@ class Manager:
             for measure in measures:
                 latest_val = self.latest_values.get(measure.get_cache_key())
                 if latest_val and abs(latest_val.data - measure.data) > measure.metric.threshold():
-                    logger.info(f"Incoherent value (Δ_temp > 5) : {measure}")
+                    logger.info(f"Incoherent value (Δ > {measure.metric.threshold()}) : {measure}")
                 else:
                     logger.info(f"{measure}")
                     self.measure_queue.put(measure)
