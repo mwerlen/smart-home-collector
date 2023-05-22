@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Dict, Any
-from sensors.tx29it import TX29IT
+from sensors.lacrossetx29it import LaCrosseTX29IT
 from queue import Queue
 from sensors.sensor import Sensor
 from sensors.measure import Measure
@@ -25,8 +25,8 @@ class Manager():
             if section_name.startswith("sensor:"):
                 section = cfg.config[section_name]
                 sensor_type = section['type']
-                if sensor_type == TX29IT.SENSOR_TYPE_NAME:
-                    sensor = TX29IT(
+                if sensor_type == LaCrosseTX29IT.SENSOR_TYPE_NAME:
+                    sensor = LaCrosseTX29IT(
                         section['radio_id'],
                         section['database_id'],
                         section['name'],
