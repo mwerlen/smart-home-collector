@@ -23,7 +23,8 @@ class SignalReader(threading.Thread):
         arguments.extend(["-f", cfg.config.get('RTL433', 'frequency')])
         arguments.extend(["-F", "json"])
         arguments.extend(["-M", cfg.config.get('RTL433', 'timezone')])
-        arguments.extend([f"-R{cfg.config.get('RTL433', 'devices')}"])
+        for device in cfg.config.get('RTL433', 'devices').split(','):
+            arguments.extend(["-R", device.strip()])
         return arguments
 
     def run(self: SignalReader) -> None:
