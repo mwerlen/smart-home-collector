@@ -52,7 +52,7 @@ class SignalReader(threading.Thread):
 
                 message: Dict[str, Any] = json.loads(line)
                 label: str = SignalReader.sanitize(message["model"])
-                acquisitiondate: datetime = datetime.now()
+                acquisition_date: datetime = datetime.now()
 
                 if "channel" in message:
                     label += ".CH=" + str(message["channel"])
@@ -60,7 +60,7 @@ class SignalReader(threading.Thread):
                     label += ".ID=" + str(message["id"])
 
                 message['radio_id'] = label
-                message['acquisitiondate'] = acquisitiondate
+                message['acquisition_date'] = acquisition_date
 
                 self.message_queue.put(message)
 

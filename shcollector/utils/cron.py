@@ -24,15 +24,15 @@ class CronScheduler():
             self._run(job)
 
     def _run(self: CronScheduler, job: Job) -> None:
-        rundate = job.cron.get_next(datetime)
-        while rundate <= timezone.localize(datetime.now()):
-            rundate = job.cron.get_next(datetime)
+        run_date = job.cron.get_next(datetime)
+        while run_date <= timezone.localize(datetime.now()):
+            run_date = job.cron.get_next(datetime)
             logger.debug("Oops too late")
-        runtime = rundate.timestamp()
-        logger.debug(f"Scheduling {job.name} run at {str(rundate)}")
+        runtime = run_date.timestamp()
+        logger.debug(f"Scheduling {job.name} run at {str(run_date)}")
         kwargs = job.args.copy()
-        if job.inject_rundate:
-            kwargs['rundate'] = rundate
+        if job.inject_run_date:
+            kwargs['run_date'] = run_date
         self.scheduler.enterabs(runtime, job.priority, job.call, kwargs=kwargs)
         self.scheduler.enterabs(runtime, 1000 + job.priority, self._run, argument=(job,))
 
@@ -55,11 +55,11 @@ class CronScheduler():
 class Job():
 
     def __init__(self: Job, name: str, expression: str, priority: int,
-                 call: Callable[..., None], args: Dict[str, Any], inject_rundate: bool):
+                 call: Callable[..., None], args: Dict[str, Any], inject_run_date: bool):
         self.name = name
         self.expression = expression
         self.priority = priority
         self.call = call
         self.args = args
-        self.inject_rundate = inject_rundate
+        self.inject_run_date = inject_run_date
         self.cron = croniter(expression, timezone.localize(datetime.now()))

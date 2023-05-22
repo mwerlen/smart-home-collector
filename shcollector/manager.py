@@ -8,10 +8,11 @@ from datetime import datetime
 import logging
 import cfg
 
+
 logger = logging.getLogger('manager')
 
 
-class Manager():
+class Manager:
 
     def __init__(self, message_queue: Queue[Dict[str, Any]], measure_queue: Queue[Measure]):
         self.sensors: Dict[str, Sensor] = {}
@@ -34,7 +35,7 @@ class Manager():
                     self.sensors[section['radio_id']] = sensor
                     logger.debug(f"Registered sensor : {section['name']}")
                 else:
-                    logger.warn(f"Unknown sensor config {section_name} with type {sensor_type}")
+                    logger.warning(f"Unknown sensor config {section_name} with type {sensor_type}")
                     continue
             else:
                 pass
@@ -48,7 +49,7 @@ class Manager():
                 sensor = self.sensors[message['radio_id']]
                 sensor.process_incoming_message(message)
             else:
-                logger.warn(f"Unknown message from {message['radio_id']}")
+                logger.warning(f"Unknown message from {message['radio_id']}")
 
     def publish_measures(self: Manager, timestamp: datetime) -> None:
         for sensor in self.sensors.values():
@@ -62,6 +63,6 @@ class Manager():
                     self.measure_queue.put(measure)
                     self.latest_values[measure.get_cache_key()] = measure
 
-    def messages_to_measures(self: Manager, rundate: datetime) -> None:
+    def messages_to_measures(self: Manager, run_date: datetime) -> None:
         self.dispatch_messages()
-        self.publish_measures(rundate)
+        self.publish_measures(run_date)
