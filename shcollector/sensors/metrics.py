@@ -12,8 +12,8 @@ class Types(Enum):
 
     def threshold(self: Types) -> int:
         if self == Types.TEMPERATURE:
-            return 5
+            return 20
         elif self == Types.HUMIDITY:
-            return 10
+            return 50
         else:
             return 99
