@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Any
 from sensors.lacrossetx29it import LaCrosseTX29IT
+from sensors.lacrossetx35 import LaCrosseTX35
 from sensors.thermoprotx2c import ThermoProTX2C
 from queue import Queue
 from sensors.sensor import Sensor
@@ -29,6 +30,14 @@ class Manager:
                 sensor_type = section['type']
                 if sensor_type == LaCrosseTX29IT.SENSOR_TYPE_NAME:
                     sensor = LaCrosseTX29IT(
+                        section['radio_id'],
+                        section['database_id'],
+                        section['name'],
+                        section['location'])
+                    self.sensors[section['radio_id']] = sensor
+                    logger.debug(f"Registered sensor : {section['name']}")
+                elif sensor_type == LaCrosseTX35.SENSOR_TYPE_NAME:
+                    sensor = LaCrosseTX35(
                         section['radio_id'],
                         section['database_id'],
                         section['name'],
