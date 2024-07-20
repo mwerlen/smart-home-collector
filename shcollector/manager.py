@@ -67,7 +67,7 @@ class Manager:
                 sensor = self.sensors[message['radio_id']]
                 sensor.process_incoming_message(message)
             else:
-                logger.warning(f"Unknown message from {message['radio_id']}")
+                logger.debug(f"Unknown message from {message['radio_id']}")
 
     def publish_measures(self: Manager, timestamp: datetime) -> None:
         for sensor in self.sensors.values():
