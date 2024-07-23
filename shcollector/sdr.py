@@ -25,6 +25,9 @@ class SignalReader(threading.Thread):
         arguments.extend(["-M", cfg.config.get('RTL433', 'timezone')])
         for device in cfg.config.get('RTL433', 'devices').split(','):
             arguments.extend(["-R", device.strip()])
+        if cfg.config.has_option('RTL433', 'other_args'):
+            other_args = cfg.config.get('RTL433', 'other_args').split(' ')
+            arguments.extend(other_args)
         return arguments
 
     def run(self: SignalReader) -> None:
