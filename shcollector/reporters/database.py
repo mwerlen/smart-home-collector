@@ -19,15 +19,15 @@ class Database():
         self.schema = cfg.config.get('Database', 'schema')
         self.add_sensordata = (
             "INSERT INTO " + self.schema + ".sensors_data "
-            " (time, idsensor, metric, data) "
-            " VALUES (%(time)s, %(idsensor)s, %(metric)s, %(data)s)"
+            " (time, idsensor, metric, data, location) "
+            " VALUES (%(time)s, %(idsensor)s, %(metric)s, %(data)s, %(location)s)"
             ";")
         self.add_sensor = (
             "INSERT INTO " + self.schema + ".sensors"
             "  VALUES (%(database_id)s, %(name)s, %(location)s)"
             "  ON CONFLICT (idsensor) DO "
             "       UPDATE SET name=excluded.name,"
-            "                  location=excluded.location"
+            "                  current_location=excluded.current_location"
             ";")
         self.measure_queue = measure_queue
 
@@ -66,7 +66,7 @@ class Database():
                     "CREATE TABLE IF NOT EXISTS " + self.schema + ".sensors ("
                     "  \"idsensor\" text PRIMARY KEY,"
                     "  \"name\" text NOT NULL,"
-                    "  \"location\" text"
+                    "  \"current_location\" text"
                     ");")
                 TABLES['sensors_data'] = (
                     "CREATE TABLE IF NOT EXISTS " + self.schema + ".sensors_data ("
@@ -74,6 +74,7 @@ class Database():
                     "  \"idsensor\" text REFERENCES " + self.schema + ".sensors,"
                     "  \"metric\" text not null,"
                     "  \"data\" real NOT NULL,"
+                    "  \"location\" text NOT NULL,"
                     "  PRIMARY KEY (time, idsensor, metric)"
                     ");")
 

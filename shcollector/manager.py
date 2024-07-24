@@ -33,7 +33,7 @@ class Manager:
                         section['radio_id'],
                         section['database_id'],
                         section['name'],
-                        section['location'])
+                        section['location'])  # type: Sensor
                     self.sensors[section['radio_id']] = sensor
                     logger.debug(f"Registered sensor : {section['name']}")
                 elif sensor_type == LaCrosseTX35.SENSOR_TYPE_NAME:
