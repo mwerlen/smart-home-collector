@@ -6,6 +6,7 @@ from sensors.thermoprotx2c import ThermoProTX2C
 from queue import Queue
 from sensors.sensor import Sensor
 from sensors.measure import Measure
+from sensors.metrics import Types
 from datetime import datetime
 import logging
 import cfg
@@ -76,6 +77,10 @@ class Manager:
                 latest_val = self.latest_values.get(measure.get_cache_key())
                 if latest_val and abs(latest_val.data - measure.data) > measure.metric.threshold():
                     logger.info(f"Incoherent value (Δ > {measure.metric.threshold()}) : {measure}")
+                elif measure.metric == Types.HUMIDITY and measure.data < 0:
+                    logger.info(f"Incoherent value (humidity under 0) : {measure}")
+                elif measure.metric == Types.HUMIDITY and measure.data > 100:
+                    logger.info(f"Incoherent value (humidity above 100) : {measure}")
                 else:
                     logger.info(f"{measure}")
                     self.measure_queue.put(measure)
