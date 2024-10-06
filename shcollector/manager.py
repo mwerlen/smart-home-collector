@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Dict, Tuple, Any
 from sensors.lacrossetx29it import LaCrosseTX29IT
 from sensors.lacrossetx35 import LaCrosseTX35
 from sensors.thermoprotx2c import ThermoProTX2C
@@ -22,7 +22,7 @@ class Manager:
         self.build_sensors()
         self.message_queue: Queue[Dict[str, Any]] = message_queue
         self.measure_queue: Queue[Measure] = measure_queue
-        self.latest_values: Dict[int, Measure] = {}
+        self.latest_values: Dict[int, Tuple[Measure, datetime]] = {}
 
     def build_sensors(self: Manager) -> None:
         for section_name in cfg.config.sections():
@@ -67,25 +67,41 @@ class Manager:
             elif message['radio_id'] in self.sensors.keys():
                 sensor = self.sensors[message['radio_id']]
                 sensor.process_incoming_message(message)
-            else:
-                logger.debug(f"Unknown message from {message['radio_id']}")
+            elif not self.is_duplicated_message(message['radio_id']):
+                logger.info(f"Unknown message from {message['radio_id']}")
 
     def publish_measures(self: Manager, timestamp: datetime) -> None:
         for sensor in self.sensors.values():
             measures = sensor.get_measures(timestamp)
             for measure in measures:
-                latest_val = self.latest_values.get(measure.get_cache_key())
-                if latest_val and abs(latest_val.data - measure.data) > measure.metric.threshold():
-                    logger.info(f"Incoherent value (Δ > {measure.metric.threshold()}) : {measure}")
-                elif measure.metric == Types.HUMIDITY and measure.data < 0:
+                # Buggy cases
+                if measure.metric == Types.HUMIDITY and measure.data < 0:
                     logger.info(f"Incoherent value (humidity under 0) : {measure}")
-                elif measure.metric == Types.HUMIDITY and measure.data > 100:
+                    continue
+                if measure.metric == Types.HUMIDITY and measure.data > 100:
                     logger.info(f"Incoherent value (humidity above 100) : {measure}")
-                else:
-                    logger.info(f"{measure}")
-                    self.measure_queue.put(measure)
-                    self.latest_values[measure.get_cache_key()] = measure
+                    continue
+
+                # Quite normal case
+                if measure.get_cache_key() in self.latest_values:
+                    (latest_val, latest_date) = self.latest_values.get(measure.get_cache_key())
+                    delta_time_since_last_value_min = (timestamp - latest_date).total_seconds() / 60
+                    if delta_time_since_last_value_min < 3 and abs(latest_val.data - measure.data) > measure.metric.threshold():
+                        logger.info(f"Incoherent value (Δ > {measure.metric.threshold()}) : {measure}")
+                        continue
+
+                # Normal case
+                logger.info(f"{measure}")
+                self.measure_queue.put(measure)
+                self.latest_values[measure.get_cache_key()] = (measure, timestamp)
 
     def messages_to_measures(self: Manager, run_date: datetime) -> None:
         self.dispatch_messages()
         self.publish_measures(run_date)
+
+    def is_duplicated_message(self: Manager, radio_id: str) -> bool:
+        if 'TX35DTHIT' in radio_id:
+            return radio_id.replace('TX35DTHIT', 'TX29IT') in self.sensors.keys()
+        if 'TX29IT' in radio_id:
+            return radio_id.replace('TX29IT', 'TX35DTHIT') in self.sensors.keys()
+        return False
