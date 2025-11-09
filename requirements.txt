@@ -9,3 +9,4 @@ types-pytz
 typing_extensions
 mypy
 freezegun
+pytest

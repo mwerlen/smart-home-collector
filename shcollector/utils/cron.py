@@ -8,7 +8,7 @@ import time
 import logging
 
 logger = logging.getLogger('cron')
-timezone = pytz.timezone('Europe/Paris')
+timezone = pytz.utc
 
 
 class CronScheduler():
@@ -25,11 +25,11 @@ class CronScheduler():
 
     def _run(self: CronScheduler, job: Job) -> None:
         run_date = job.cron.get_next(datetime)
-        while run_date <= timezone.localize(datetime.now()):
+        while run_date <= datetime.now(timezone):
             run_date = job.cron.get_next(datetime)
             logger.debug("Oops too late")
         runtime = run_date.timestamp()
-        logger.debug(f"Scheduling {job.name} run at {str(run_date)}")
+        logger.debug(f"Scheduling {job.name} run at {str(run_date.astimezone())}")
         kwargs = job.args.copy()
         if job.inject_run_date:
             kwargs['run_date'] = run_date
@@ -62,4 +62,4 @@ class Job():
         self.call = call
         self.args = args
         self.inject_run_date = inject_run_date
-        self.cron = croniter(expression, timezone.localize(datetime.now()))
+        self.cron = croniter(expression, datetime.now(timezone))

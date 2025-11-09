@@ -3,6 +3,7 @@ import subprocess
 import json
 import threading
 import logging
+import pytz
 from datetime import datetime
 from typing import Dict, Any, List
 from queue import Queue
@@ -56,7 +57,7 @@ class SignalReader(threading.Thread):
 
                 message: Dict[str, Any] = json.loads(line)
                 label: str = SignalReader.sanitize(message["model"])
-                acquisition_date: datetime = datetime.now()
+                acquisition_date: datetime = datetime.now(pytz.utc)
 
                 if "channel" in message:
                     label += ".CH=" + str(message["channel"])

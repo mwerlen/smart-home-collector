@@ -15,7 +15,7 @@ class Measure(object):
         self.location: str = location
 
     def __str__(self: Measure) -> str:
-        return f"Measure taken at {self.time} in {self.location}"\
+        return f"Measure taken at {self.time.astimezone()} in {self.location}"\
                f" by {self.database_id} of {self.metric} = {self.data}"
 
     def sql_value(self: Measure) -> Dict[str, object]:
