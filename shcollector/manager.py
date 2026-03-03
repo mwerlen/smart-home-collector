@@ -86,7 +86,7 @@ class Manager:
                 if measure.get_cache_key() in self.latest_values:
                     (latest_val, latest_date) = self.latest_values.get(measure.get_cache_key())
                     delta_time_since_last_value_min = (timestamp - latest_date).total_seconds() / 60
-                    if delta_time_since_last_value_min < 3 and abs(latest_val.data - measure.data) > measure.metric.threshold():
+                    if delta_time_since_last_value_min < 60 and abs(latest_val.data - measure.data) > measure.metric.threshold():
                         logger.info(f"Incoherent value (Δ > {measure.metric.threshold()}) : {measure}")
                         continue
 
